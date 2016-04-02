@@ -13,7 +13,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/CommandLine.h"
-
+#include "llvm/Support/SourceMgr.h"
 #include <memory>
 
 using namespace llvm;
