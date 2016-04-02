@@ -14,6 +14,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
+#include "olive.h"
 #include <memory>
 
 using namespace llvm;
@@ -44,9 +45,31 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
 
     M = parseIRFile(inputfile, Err, Context);
 
-    legacy::PassManager PM;
-    //PM.add(new PrintModulePass(&llvm::cout));
-    PM.run(*M);
+    //FunctionListType &FunctionList = M.getFunctionList();
 
-    return M; 
+    for(auto &f:M->getFunctionList())
+        for(auto &bb:f.getBasicBlockList())
+            for( auto &I: bb.getInstList()) {
+                I.print(errs());
+                errs() << "\n" 
+                       //<< "  opcode = " << I.getOpcode() << "\n"
+                       //<< "  isAdd = " << I.isBinaryOp() << "\n"
+                       ;
+                
+                errs() << "Number of Operands = " << I.getNumOperands() << "\n" ;
+                for(unsigned int i = 0; i < I.getNumOperands(); i++){
+                    auto operand = I.getOperand(i);
+                    /*if(operand->getValueName())
+                    errs() << "Valuename = " <<operand->getValueName()->getValue()->getName() << "\n" 
+                           << "name = " << operand->getName() << "\n";*/
+                    errs() <<"!!!!!!!!!!!" <<  i << " ";
+                    operand->print(errs());
+                }
+                errs() << "\n\n"; 
+            }
+
+    //legacy::PassManager PM;
+    //PM.add(new PrintModulePass(&llvm::cout));
+    //PM.run(*M);
+    return M;
 }
