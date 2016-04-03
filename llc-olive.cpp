@@ -45,7 +45,9 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
 
     legacy::PassManager PM;
     //PM.add(new PrintModulePass(&llvm::cout));
-    PM.run(*M);
+    for(auto f : M.getFunctionList()){
 
+}
+    //PM.run(*M);
     return M; 
 }
