@@ -4,6 +4,8 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string>
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 /*
    FILE: sample4.brg
   
@@ -29,7 +31,8 @@ typedef struct tree {
 	int op;
 	struct tree *kids[2];
 	int val;
-	struct { struct burm_state *state; } x;
+    llvm::Instruction* I;
+    struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 #define GET_KIDS(p)	((p)->kids)
 #define PANIC printf
