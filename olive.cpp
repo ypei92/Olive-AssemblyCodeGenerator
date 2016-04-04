@@ -998,12 +998,16 @@ int main(int argc, char *argv[]) {
 	}
 	printf("i = c + 4;\n");
 	t = tree(ASGNI,
-		tree(ADDRLP, 0, 0),
-		tree(ADDI,
-			tree(CVCI, tree(INDIRC, tree(ADDRLP, 0, 0), 0), 0),
-			(t = tree(CNSTI, 0, 0), t->val = 4, t)
-		)
-	);
+		    tree(ADDRLP, 0, 0),
+		    tree(ADDI,
+			     tree(CVCI, 
+                      tree(INDIRC,
+                           tree(ADDRLP, 0, 0),
+                           0),
+                      0),
+			    (t = tree(CNSTI, 0, 0), t->val = 4, t)
+		    )
+	    );
 	gen(t);
 	return 0;
 }
