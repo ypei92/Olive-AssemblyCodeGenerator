@@ -14,6 +14,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "olive.h"
+#include "olive.cpp"
 #include <memory>
 
 using namespace llvm;
@@ -37,6 +38,124 @@ int main( int argc, char **argv) {
     return 0;
 
 }
+struct SymbolTable{
+    char* name;
+    int addrCount;
+    SymbolTable* next;
+
+    SymbolTable(){
+        name = NULL;
+        addrCount = -4;
+        next = NULL;
+    }
+
+};
+void addSymbolTable(SymbolTable* ST, const char* name){
+    SymbolTable* p = new SymbolTable;
+    p->name = (char *)name;
+    p->next = ST;
+    p->addrCount = ST->addrCount - 4;// #define size_int 4
+    ST = p;
+
+}
+
+struct TreeList{
+    TreeList* next;
+    Tree tptr;
+    
+    TreeList(){
+        tptr = NULL;
+        next = NULL;
+    }
+};
+void addTree(TreeList* &TL, Tree t){
+    TreeList* p = new TreeList;
+    p->tptr = t;
+    p->next = TL;
+    TL = p;
+}
+
+
+bool removeTree(TreeList* &TL, Tree t){
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        if(temp->tptr == t){
+            temp = temp->next;
+            return true;
+        }
+    }
+    return false;
+}
+
+
+bool mergeTree(TreeList* &TL, Tree root, Tree t){//merge two children
+    bool tag = false;
+    auto I = t->I;
+    auto rootI = root->I;
+    for(unsigned int i = 0; i < I->getNumOperands(); i++){
+        auto operand = I->getOperand(i);
+        if(operand == (Value*) rootI){
+            tag = true;
+            t->kids[i] = root;
+        }
+    }
+    if(root->kids[0])
+        tag |= mergeTree(TL, root->kids[0], t);
+    if(root->kids[1])
+        tag |= mergeTree(TL, root->kids[1], t);
+    return tag;
+}
+
+bool mergeTreeList(TreeList* &TL, Tree t){ // merge two children
+    bool tag = false;
+    for(auto temp = TL; temp != NULL; temp = temp->next){
+        if(temp->tptr){
+            
+            tag |= mergeTree( TL, temp->tptr, t);       
+    
+        }
+    }
+    return tag;
+}
+
+bool mergeTreeLeft(TreeList* &TL, Tree root, Tree t, Value* operand){//only merge 1st children
+    bool tag = false;
+    Instruction* rootI = root->I;
+    if(operand->getValueName() && (operand == (Value*)rootI )){
+        tag = true;
+        t->kids[0] = root;
+        return true;
+    }
+    if(root->kids[0])
+        tag |= mergeTreeLeft(TL, root->kids[0], t, operand);
+    if(root->kids[1])
+        tag |= mergeTreeLeft(TL, root->kids[1], t, operand);
+    return tag;
+}
+
+bool mergeTreeListLeft(TreeList* &TL, Tree t, Value* operand){ // only merge 1st children
+    bool tag = false;
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        if(temp->tptr)
+            tag |= mergeTreeLeft( TL, temp->tptr, t, operand);       
+    } 
+    return tag;
+}
+void printTree(Tree t, int depth){
+    errs() << depth << ' '<< t->op <<  '\n';
+    if(t->kids[0])
+        printTree(t->kids[0], depth + 1);
+    if(t->kids[1])
+        printTree(t->kids[1], depth + 1);
+}
+
+void printTreeList(TreeList* &TL){
+    errs() << "this is the output\n";
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        if(temp->tptr)
+            printTree(temp->tptr, 0);
+        //errs() << temp->tptr->op <<'\n';
+    } 
+}
 
 std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
     SMDiagnostic Err;
@@ -49,28 +168,61 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
 
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
-
+    TreeList* TL = new TreeList;
+    SymbolTable* ST = new SymbolTable;
     for(auto &f:M->getFunctionList())
         for(auto &bb:f.getBasicBlockList())
             for( auto &I: bb.getInstList()) {
                 I.print(errs());
                 errs() << "\n" 
-                       //<< "  opcode = " << I.getOpcode() << "\n"
-                       //<< "  isAdd = " << I.isBinaryOp() << "\n"
+                       << "  opcode = " << I.getOpcode() << "\n"
+                       << "  isBinary = " << I.isBinaryOp() << "\n"
                        ;
                 
                 errs() << "Number of Operands = " << I.getNumOperands() << "\n" ;
-                for(unsigned int i = 0; i < I.getNumOperands(); i++){
-                    auto operand = I.getOperand(i);
-                    /*if(operand->getValueName())
-                    errs() << "Valuename = " <<operand->getValueName()->getValue()->getName() << "\n" 
-                           << "name = " << operand->getName() << "\n";*/
-                    errs() <<"!!!!!!!!!!!" <<  i << " ";
-                    operand->print(errs());
-                }
-                errs() << "\n\n"; 
-            }
+                errs() << I.getName()<< "\n";
+                errs() << I.getValueName() <<"\n";
+                if(I.getOpcode() != 29 && I.getOpcode() != 54) {// #define alloca 29
+                    Tree t = tree(I.getOpcode(), 0, 0);
+                    t->I = &I;
+                    if(I.isBinaryOp() && I.hasName()){
+                        Tree t_mov = tree(999, 0, 0); //#define MOV 999
+                        Tree t_reg = tree(998, 0, 0); //#define REG 998
+                        t->kids[1] = t_mov;
+                        t_mov->kids[1] = t_reg;
+                        bool temp1 = mergeTreeListLeft(TL, t_mov, (Value*) I.getOperand(0));
+                        bool temp2 = mergeTreeListLeft(TL, t, (Value *) I.getOperand(1));
+                        if(!temp2 || !temp1){ 
+                            errs()<<"merge tree error!\n";
+                            addTree(TL, t);
 
+                        }
+                    }
+                    else if(!mergeTreeList(TL, t)){
+                        errs() << "test1\n";
+                        addTree(TL, t);
+                    }
+                    
+                    
+                    errs() << "test2\n";
+                }
+                else{
+                    addSymbolTable(ST, I.getName().data());
+                }
+
+
+
+                /*for(unsigned int i = 0; i < I.getNumOperands(); i++){
+                    auto operand = I.getOperand(i);
+                    if(operand->getValueName())
+                    errs() << "Valuename = " <<operand->getValueName()<< "\n" 
+                           << "name = " << operand->getName() << "\n";
+                    operand->print(errs());
+                    errs()<<'\n';
+                }
+                errs() << "\n\n";*/
+            }
+    printTreeList(TL);
     //legacy::PassManager PM;
     //PM.add(new PrintModulePass(&llvm::cout));
     //PM.run(*M);
