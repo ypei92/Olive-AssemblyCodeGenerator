@@ -1,4 +1,4 @@
-#include "sample4.h"
+#include "olive.h"
 #define burm_stmt_NT 1
 #define burm_reg_NT 2
 #define burm_disp_NT 3
@@ -981,7 +981,8 @@ static Tree tree(int op, Tree l, Tree r) {
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
 	t->x.state = 0;
-	return t;
+    t->I = 0;
+    return t;
 }
 /*
 int main(int argc, char *argv[]) {
