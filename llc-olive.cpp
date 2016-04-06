@@ -15,8 +15,8 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Constant.h"
-#include "olive.h"
-#include "olive_cpp.h"
+#include "llc-olive-grammar.h"
+#include "llc-olive-grammar_cpp.h"
 #include <memory>
 #include <list>
 using namespace llvm;
@@ -223,6 +223,7 @@ void printTreeList(TreeList* &TL){
         printTree(temp->tptr, 0);
         //errs() << temp->tptr->op <<'\n';
         errs()<<"\n";
+        gen(temp->tptr);
     } 
 }
 

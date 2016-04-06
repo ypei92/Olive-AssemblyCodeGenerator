@@ -108,7 +108,7 @@ std::string burm_string[] = {
 
 std::string burm_files[] = {
 "llc-olive-grammar.brg",
-"llc-olive-grammar.brg.cpp",
+"llc-olive-grammar.cpp",
 "/home1/04012/ypei/llvm/include",
 };
 
@@ -132,8 +132,8 @@ int burm_line_numbers[] = {
   /* 4 */  119,
   /* 5 */  128,
   /* 6 */  137,
-  /* 7 */  145,
-  /* 8 */  154,
+  /* 7 */  146,
+  /* 8 */  155,
 };
 
 #pragma GCC diagnostic push
@@ -431,8 +431,9 @@ int indent)
 
 
 
-	    int off = imm_action(_s->kids[0],0);
-        printf("    mov %d(%%rbp) , %%%d\n", off, registerCounter);
+        int off = imm_action(_s->kids[0],0);
+        printf("off = %d, $2->val = %d\n", off, _s->kids[0]->node->val);
+        printf("    mov %d(%%rbp) , %%%d\n", _s->kids[0]->node->val, registerCounter);
         return registerCounter++;
 	
 }
@@ -801,6 +802,10 @@ int main(int argc, char *argv[]) {
 	Tree t1= (Tree) malloc(sizeof *t1);
 	Tree t2= (Tree) malloc(sizeof *t2);
 	Tree t3= (Tree) malloc(sizeof *t3);
+	Tree t4= (Tree) malloc(sizeof *t4);
+	Tree t5= (Tree) malloc(sizeof *t5);
+	Tree ta= (Tree) malloc(sizeof *ta);
+	Tree tb= (Tree) malloc(sizeof *tb);
 
     t0 -> op = IMM;
     t0 -> val = 1;
@@ -809,7 +814,7 @@ int main(int argc, char *argv[]) {
 	t0->x.state = 0;
 
     t1 -> op = IMM;
-    t1 -> val = 0;
+    t1 -> val = -8;
     t1 ->kids[0] = 0;
     t1 ->kids[1] = 0;
 	t1->x.state = 0;
@@ -821,25 +826,51 @@ int main(int argc, char *argv[]) {
 	t2->x.state = 0;
 
     t3 -> op = IMM;
-    t3 -> val = -4;
+    t3 -> val = -16;
     t3 ->kids[0] = 0;
     t3 ->kids[1] = 0;
 	t3->x.state = 0;
+    
+    t4 -> op = STORE;
+    t4 -> val = 0;
+    t4 ->kids[0] = t0;
+    t4 ->kids[1] = t1;
+	t4->x.state = 0;
 
+    t5 -> op = STORE;
+    t5 -> val = 0;
+    t5 ->kids[0] = t2;
+    t5 ->kids[1] = t3;
+	t5->x.state = 0;
+    
+    ta-> op = IMM;
+    ta -> val = -8;
+    ta ->kids[0] = 0;
+    ta ->kids[1] = 0;
+	ta->x.state = 0;
+
+    tb -> op = IMM;
+    tb -> val = -16;
+    tb ->kids[0] = 0;
+    tb ->kids[1] = 0;
+	tb->x.state = 0;
+    
 
 	t = tree(ADD, 
              tree(LOAD,
-                  tree(STORE, t0, t1 ),
+                  tb,
                   0),
              tree(LOAD,
-                  tree(STORE, t2, t3 ),
+                  ta,
                   0)
 		);
-    Tree t5 = tree(RET,t,0);
+    Tree t6 = tree(RET,t,0);
 
     printf("    .text\n");
 
+    gen(t4);
 	gen(t5);
+    gen(t6);
 
     printf("\n");
     printf("    .global main\n");

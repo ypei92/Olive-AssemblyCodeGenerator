@@ -20,24 +20,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-//#include <llvm/IR/Instruction.h>
-//#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
 //#include "/home1/04012/ypei/llvm/include/llvm/IR/Instruction.h"
 //#include "/home1/04012/ypei/llvm/include/llvm/IR/Instructions.h"
 
 enum {
-    RET=29,
-	ADD=30,
-    LOAD=31,
-    STORE=32,
-    IMM=53
+    RET=1,
+	ADD=11,
+    LOAD=30,
+    STORE=31,
+    IMM=996
 };
 
 typedef struct tree {
 	int op;
 	struct tree *kids[2];
 	int val;
-    //instruction *I;
+    llvm::Instruction *I;
     char datatype;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
