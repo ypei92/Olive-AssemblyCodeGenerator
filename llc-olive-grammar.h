@@ -73,7 +73,12 @@ static LoadedMem *LoadedMemHead = NULL;
 
 int OP_LABEL(NODEPTR p) {
 	switch (p->op) {
-	case IMM:  if (p->val == 0) return 661 /* I0I */;
+	//case IMM:  if (p->val == 0) return 661;
+    case RET: return 1; 
+    case LOAD: return 3;
+    case ADD: return 2;
+    case STORE: return 4;
+    case IMM: return 5;
 	default:     return p->op;
 	}
 }
@@ -95,7 +100,7 @@ struct burm_state {
   struct {
     unsigned burm_stmt:2;
     unsigned burm_reg:3;
-    unsigned burm_mem:1;
+    unsigned burm_mem:2;
     unsigned burm_imm:1;
     unsigned burm__:1;
   } rule;

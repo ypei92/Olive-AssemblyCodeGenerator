@@ -68,7 +68,12 @@ static LoadedMem *LoadedMemHead = NULL;
 
 int OP_LABEL(NODEPTR p) {
 	switch (p->op) {
-	case IMM:  if (p->val == 0) return 661 /* I0I */;
+	//case IMM:  if (p->val == 0) return 661;
+    case RET: return 1; 
+    case LOAD: return 3;
+    case ADD: return 2;
+    case STORE: return 4;
+    case IMM: return 5;
 	default:     return p->op;
 	}
 }
@@ -76,7 +81,7 @@ int OP_LABEL(NODEPTR p) {
 static void burm_trace(NODEPTR, int, COST);
 
 %}
-%term BURP=0 RET=1 ADD=11 LOAD=30 STORE=31 IMM=996
+%term BURP=0 RET=1 ADD=11 LOAD=30 STORE=31 IMM=5996
 %declare<int> stmt<int indent>;
 %declare<int> reg<int indent>;
 %declare<int> mem<int indent>;
@@ -102,6 +107,15 @@ stmt:   mem
         return 0;
     };
 
+reg:    RET(imm)
+    { $cost[0].cost=1;}
+    = {
+        printf("    mov $%d, %%rax\n", $2->val);
+        printf("    mov %%rbp, %%rsp\n");
+        printf("    pop %%rbp\n");
+        printf("    ret\n");
+        return 0;
+    };
 
 reg:    RET(reg)
     { $cost[0].cost=$cost[2].cost+1;}
@@ -136,9 +150,27 @@ reg:	LOAD(imm)
 	{ $cost[0].cost=$cost[2].cost+1; }
 	= {
         int off = $action[2](0);
-        printf("off = %d, $2->val = %d\n", off, $2->val);
+        //printf("off = %d, $2->val = %d\n", off, $2->val);
         printf("    mov %d(%%rbp) , %%%d\n", $2->val, registerCounter);
         return registerCounter++;
+	};
+
+reg:	LOAD(reg)
+	{ $cost[0].cost=$cost[2].cost+1; }
+	= {
+        int reg = $action[2](0);
+       // printf("off = %d, $2->val = %d\n", off, $2->val);
+        printf("    mov %%%d, %%%d\n", reg, registerCounter);
+        return registerCounter++;
+	};
+
+mem:	STORE(reg, imm)
+	{ $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+	= {
+		int reg    = $action[2](0);
+		int offset = $action[3](0);
+        printf("    mov %%%d , %d(%%rbp)\n", reg, offset);
+        return offset;
 	};
 
 mem:	STORE(imm, imm)
