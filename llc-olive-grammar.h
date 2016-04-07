@@ -4,8 +4,6 @@
 #include <iostream>
 #include <stdlib.h>
 #include <string>
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
 /*
    FILE: sample4.brg
   
@@ -22,18 +20,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
+//#include "/home1/04012/ypei/llvm/include/llvm/IR/Instruction.h"
+//#include "/home1/04012/ypei/llvm/include/llvm/IR/Instructions.h"
+
 enum {
-	ADDI=309, ADDRLP=295, ASGNI=53,
-	CNSTI=21, CVCI=85, I0I=661, INDIRC=67
+    RET=1,
+	ADD=11,
+    LOAD=30,
+    STORE=31,
+    IMM=996
 };
 
 typedef struct tree {
 	int op;
 	struct tree *kids[2];
 	int val;
-    llvm::Instruction* I;
-    struct { struct burm_state *state; } x;
+    llvm::Instruction *I;
+    char datatype;
+	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
+
 #define GET_KIDS(p)	((p)->kids)
 #define PANIC printf
 #define STATE_LABEL(p) ((p)->x.state)
@@ -45,19 +53,27 @@ typedef struct COST {
     int cost;
 } COST;
 #define COST_LESS(a,b) ((a).cost < (b).cost)
-
 static COST COST_INFINITY = { 32767 };
 static COST COST_ZERO     = { 0 };
+
+typedef struct LoadedMem {
+    char* UnderFunName;
+    int Offset;
+    int TargetReg;
+    struct LoadedMem *next;
+} LoadedMem;
 
 /*static char* burm_string = "FOO";*/
 static int _ern = 0;
 
 static int shouldTrace = 0;
 static int shouldCover = 0;
+static int registerCounter = 0;
+static LoadedMem *LoadedMemHead = NULL;
 
 int OP_LABEL(NODEPTR p) {
 	switch (p->op) {
-	case CNSTI:  if (p->val == 0) return 661 /* I0I */;
+	case IMM:  if (p->val == 0) return 661 /* I0I */;
 	default:     return p->op;
 	}
 }
@@ -65,25 +81,22 @@ int OP_LABEL(NODEPTR p) {
 static void burm_trace(NODEPTR, int, COST);
 
 #define BURP 0
-#define ADDI 1
-#define ADDRLP 2
-#define ASGNI 3
-#define CNSTI 4
-#define CVCI 5
-#define I0I 6
-#define INDIRC 7
+#define RET 1
+#define ADD 2
+#define LOAD 3
+#define STORE 4
+#define IMM 5
 
 struct burm_state {
   int op;
   NODEPTR node;
   struct burm_state **kids;
-  COST cost[7];
+  COST cost[6];
   struct {
     unsigned burm_stmt:2;
     unsigned burm_reg:3;
-    unsigned burm_disp:2;
-    unsigned burm_rc:2;
-    unsigned burm_con:2;
+    unsigned burm_mem:1;
+    unsigned burm_imm:1;
     unsigned burm__:1;
   } rule;
 };
