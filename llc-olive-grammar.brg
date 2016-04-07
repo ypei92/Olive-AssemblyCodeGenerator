@@ -81,7 +81,7 @@ int OP_LABEL(NODEPTR p) {
 static void burm_trace(NODEPTR, int, COST);
 
 %}
-%term BURP=0 RET=1 ADD=11 LOAD=30 STORE=31 IMM=5996
+%term BURP=0 RET=1 ADD=11 LOAD=30 STORE=31 IMM=996
 %declare<int> stmt<int indent>;
 %declare<int> reg<int indent>;
 %declare<int> mem<int indent>;
@@ -212,6 +212,7 @@ static Tree tree(int op, Tree l, Tree r) {
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
 	t->x.state = 0;
+    t->I = NULL;
 	return t;
 }
 
