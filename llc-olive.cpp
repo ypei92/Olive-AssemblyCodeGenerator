@@ -197,6 +197,31 @@ bool mergeTreeListLeft(TreeList* &TL, Value* operand, Tree t){ // only merge 1st
     return tag;
 }
 
+bool mergeTreeRight(TreeList* &TL, Tree root, Tree t, Value* operand){//only merge 1st children
+    bool tag = false;
+    Instruction* rootI = root->I;
+    if(operand == (Value*)rootI ){
+        t->kids[1] = root;
+        //errs() << "yes merge left!\n";
+        removeTree(TL, root);
+        return true;
+    }
+    if(root->kids[0])
+        tag |= mergeTreeLeft(TL, root->kids[0], t, operand);
+    if(root->kids[1] && !tag)
+        tag |= mergeTreeLeft(TL, root->kids[1], t, operand);
+    return tag;
+}
+
+bool mergeTreeListRight(TreeList* &TL, Value* operand, Tree t){ // only merge 1st children
+    bool tag = false;
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        if(!tag)
+            tag |= mergeTreeLeft( TL, temp->tptr, t, operand);       
+    } 
+    return tag;
+}
+
 void printTree(Tree t, int depth){
     errs() << depth << ' '<< t->op << ' ';
     if(t->op < 500){
@@ -289,7 +314,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             errs() << " find new constant\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
-                            Tree imm_l = tree(996, 0, 0);
+                            Tree imm_l = tree(996, 0, 0);//#define IMM 996
                             t->kids[0] = imm_l;
                             errs() << "store left\n";
                             if(CI) {
@@ -309,10 +334,15 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             }
 
                         }
-                        
-                        else if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy())
-                            findSymbolTable(ST, I.getOperand(0), t);
-                        if(!findSymbolTable(ST, I.getOperand(1),imm_r)){
+                        else if(I.getOperand(0)->getType()->isPointerTy()){
+                            errs() << "store from a pointer!\n";
+                            Tree imm = tree(996, 0, 0);
+                            t->kids[0] = imm;
+                            if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), imm)))
+                                errs() << "find symboltable &&! merge tree left error\n";
+                        }
+                       
+                        if(!(mergeTreeListRight(TL, I.getOperand(1), t)||findSymbolTable(ST, I.getOperand(1),imm_r))){
                             errs() << "find symboltable error!\n";
                             exit(1);
                         }
@@ -324,8 +354,8 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             errs() << "load from a pointer!\n";
                             findSymbolTable(ST, I.getOperand(0), t);
                         }
-                        else if(!findSymbolTable(ST, I.getOperand(0),imm)){
-                            errs() << "find symboltable error!\n";
+                        else if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0),imm))){
+                            errs() << "merge tree list & find symboltable error!\n";
                             exit(1);
                         }
 
