@@ -380,10 +380,25 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                     
                     
                     }
+                    else if(I.getOpcode() == 1){
+                        if(I.getOperand(0)->getType()->isPointerTy()){
+                            if(!(mergeTreeList(TL, t) || findSymbolTable(ST, I.getOperand(0), t))){
+                                errs() << "merge and find error in ret\n";
+                            }
+                        }
+                        else{
+                                Tree t_imm = tree(996, 0, 0);
+                                t->kids[0] = t_imm;
+                                ConstantInt* CI = dyn_cast<ConstantInt>(I.getOperand(0));
+                                t_imm->val = CI->getSExtValue(); 
+                        }
+                    }
                     else if(!mergeTreeList(TL, t)){
+                        
                         errs() << "independent tree!\n";
                         //addTree(TL, t);
                     }
+                    else errs() << "unknown operation\n";
                 }
                 else{
                     addSymbolTable(ST, (Value* )&I);
