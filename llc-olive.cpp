@@ -308,8 +308,8 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                     }
                     else if(I.getOpcode() == 31 ){//#define store 31
-                        Tree imm_r = tree(996, 0, 0);//#define IMM 996
-                        t->kids[1] = imm_r;
+                        Tree offset_r = tree(999, 0, 0);//#define OFFSET 996
+                        t->kids[1] = offset_r;
                         if(t->I->getOperand(0)->getType()->isIntegerTy()){
                             errs() << " find new constant\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
@@ -336,25 +336,25 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                         else if(I.getOperand(0)->getType()->isPointerTy()){
                             errs() << "store from a pointer!\n";
-                            Tree imm = tree(996, 0, 0);
-                            t->kids[0] = imm;
-                            if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), imm)))
+                            Tree offset = tree(999, 0, 0);
+                            t->kids[0] = offset;
+                            if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
                                 errs() << "find symboltable &&! merge tree left error\n";
                         }
                        
-                        if(!(mergeTreeListRight(TL, I.getOperand(1), t)||findSymbolTable(ST, I.getOperand(1),imm_r))){
+                        if(!(mergeTreeListRight(TL, I.getOperand(1), t)||findSymbolTable(ST, I.getOperand(1),offset_r))){
                             errs() << "find symboltable error!\n";
                             exit(1);
                         }
                     }
                     else if(I.getOpcode() == 30){//#define load 30
-                        Tree imm = tree(996, 0, 0);// #define IMM 996
-                        t->kids[0] = imm;
+                        Tree offset = tree(999, 0, 0);// #define IMM 996
+                        t->kids[0] = offset;
                         if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
                             errs() << "load from a pointer!\n";
                             findSymbolTable(ST, I.getOperand(0), t);
                         }
-                        else if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0),imm))){
+                        else if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0),offset))){
                             errs() << "merge tree list & find symboltable error!\n";
                             exit(1);
                         }
@@ -363,7 +363,6 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                     else if(I.getOpcode() == 54){ // #define call 54
                         Tree tmp = t;
                         if(I.getNumOperands() > 1){
-                            t->kids[1] = tree(998, 0, 0);
                             t->kids[0] = tree(997, 0, 0);// #define ARGLIST 997
                             tmp = t->kids[0];
                         }
@@ -394,7 +393,6 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                     }
                     else if(!mergeTreeList(TL, t)){
-                        
                         errs() << "independent tree!\n";
                         //addTree(TL, t);
                     }
