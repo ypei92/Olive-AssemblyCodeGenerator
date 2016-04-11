@@ -21,11 +21,37 @@
 //#include "/home1/04012/ypei/llvm/include/llvm/IR/Instructions.h"
 
 enum {
+    CALL=54,
     RET=1,
 	ADD=11,
+    MERGE=997,
     LOAD=30,
     STORE=31,
-    IMM=996
+    IMM=996,
+    ARG=998,
+    OFFSET=999,
+    ARGEND=995
+};
+
+static char ArgRegs[6][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9"};
+static char CalleeRegs[5][6] = {"%%rbx", "%%r12", "%%r13", "%%r14", "%%r15"};
+static char CallerRegs[2][6] = {"%%r10", "%%r11"};
+static char Regs[13][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9", "%%rbx", "%%r12", "%%r13", "%%r14", "%%r15", "%%r10", "%%r11"}; 
+
+enum {
+    RDI = 0,
+    RSI = 1,
+    RDX = 2,
+    RCX = 3,
+    R8  = 4,
+    R9  = 5,
+    RBX = 6,
+    R12 = 7,
+    R13 = 8,
+    R14 = 9,
+    R15 = 10,
+    R10 = 11,
+    R11 = 12
 };
 
 typedef struct tree {
@@ -33,7 +59,7 @@ typedef struct tree {
 	struct tree *kids[2];
 	int val;
     llvm::Instruction *I;
-    char datatype;
+    int valtype;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -51,6 +77,15 @@ typedef struct COST {
 static COST COST_INFINITY = { 32767 };
 static COST COST_ZERO     = { 0 };
 
+enum {
+    reG=0,
+    meM=1,
+    imM=2,
+    arglisT=3,
+    pointeR=4,
+    nontypE = 999
+};
+
 typedef struct LoadedMem {
     char* UnderFunName;
     int Offset;
@@ -58,35 +93,70 @@ typedef struct LoadedMem {
     struct LoadedMem *next;
 } LoadedMem;
 
+static LoadedMem *LoadedMemHead = NULL;
+LoadedMem* findLoadedMem(char* name, int off, int tarreg) {
+    LoadedMem *p = LoadedMemHead;
+    while(p != NULL) {
+        if( p->UnderFunName == name || p->Offset == off || p->TargetReg == tarreg )
+            return p;
+        p = p->next;
+    }
+
+	LoadedMem *lmem = (LoadedMem*) malloc(sizeof(LoadedMem));
+
+    lmem -> UnderFunName = name;
+    lmem -> Offset = off;
+    lmem -> TargetReg = tarreg;
+    
+    if( LoadedMemHead != NULL )
+        lmem -> next = LoadedMemHead -> next;
+    else 
+        lmem -> next = NULL;
+
+    LoadedMemHead = lmem;
+    return lmem;
+}
+
 /*static char* burm_string = "FOO";*/
 static int _ern = 0;
 
 static int shouldTrace = 0;
 static int shouldCover = 0;
-static int registerCounter = 0;
-static LoadedMem *LoadedMemHead = NULL;
+static int RegCounter = 1;
+static llvm::Function* PreFun = NULL;
 
 int OP_LABEL(NODEPTR p) {
+    if(p) printf(" p->op%d \n", p->op);
 	switch (p->op) {
-	//case IMM:  if (p->val == 0) return 661;
-    case RET: return 1; 
-    case LOAD: return 3;
-    case ADD: return 2;
-    case STORE: return 4;
-    case IMM: return 5;
-	default:     return p->op;
+	    //case IMM:  if (p->val == 0) return ZERO;
+        case CALL: return 1;
+        case RET: return 2; 
+        case ADD: return 3;
+        case MERGE: return 4;
+        case LOAD: return 5;
+        case STORE: return 6;
+        case IMM: return 7;
+        case ARG: return 8;
+        case OFFSET: return 9;
+        case ARGEND: return 10;
+	    default: return p->op;
 	}
+    
 }
 
 static void burm_trace(NODEPTR, int, COST);
 
 %}
-%term BURP=0 RET=1 ADD=11 LOAD=30 STORE=31 IMM=5996
-%declare<int> stmt<int indent>;
-%declare<int> reg<int indent>;
-%declare<int> mem<int indent>;
-%declare<int> imm<int indent>;
+%term BURP=0 CALL=54 RET=1 ADD=11 MERGE=997 LOAD=30 STORE=31
+%term IMM=996 ARG=998 OFFSET=999 ARGEND=995
+%declare<void> stmt<int indent>;
+%declare<void> reg<int indent>;
+%declare<void> mem<int indent>;
+%declare<void> imm<int indent>;
+%declare<void> arglist<int indent>;
+%declare<void> argend<int indent>;
 %%
+
 stmt:	BURP(_,_,_)
 	{ return 1; }
 	= {
@@ -96,97 +166,327 @@ stmt:	BURP(_,_,_)
 stmt:   reg
     { $cost[0].cost=$cost[1].cost; }
     = {
+        llvm::Function* CurFun = $0->I->getFunction();
+        if( CurFun != PreFun ) {
+            PreFun = CurFun;
+            RegCounter = 1;
+            printf("_Your_%s:\n",CurFun->getName());
+            printf("    pushq %%rbp\n");
+            printf("    movq %%rsp, %%rbp\n");
+        }
         $action[1](0);
-        return 0;
     };
 
-stmt:   mem 
+stmt:   mem
     { $cost[0].cost=$cost[1].cost; }
     = {
+        llvm::Function* CurFun = $0->I->getFunction();
+        if( CurFun != PreFun ) {
+            PreFun = CurFun;
+            RegCounter = 1;
+            printf("_Your_%s:\n",CurFun->getName());
+            printf("    pushq %%rbp\n");
+            printf("    movq %%rsp, %%rbp\n");
+        }
         $action[1](0);
-        return 0;
     };
 
 reg:    RET(imm)
-    { $cost[0].cost=1;}
+    { $cost[0].cost=$cost[2].cost+1;}
     = {
+        $action[2](0);
         printf("    mov $%d, %%rax\n", $2->val);
         printf("    mov %%rbp, %%rsp\n");
         printf("    pop %%rbp\n");
         printf("    ret\n");
-        return 0;
+
+        $0->val = $2->val;
+        $0->valtype = imM;
     };
 
 reg:    RET(reg)
     { $cost[0].cost=$cost[2].cost+1;}
     = {
-		int op0 = $action[2](0);
-        printf("    mov %%%d, %%rax\n", op0);
+        $action[2](0);
+        printf("    mov %%%d, %%rax\n", $2->val);
         printf("    mov %%rbp, %%rsp\n");
         printf("    pop %%rbp\n");
         printf("    ret\n");
-        return 0;
+
+        $0->val = $2->val;
+        $0->valtype = reG;
     };
 
-reg:	ADD(reg,reg)
-	{ $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
-	= {
-		int op0 = $action[2](0);
-		int op1 = $action[3](0);
-        printf("    add %%%d, %%%d\n", op0, op1 );
-        return op1;
-	};
-
-reg:    ADD(LOAD(imm),reg)
-	{ $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
+reg:    RET(mem)
+    { $cost[0].cost=$cost[2].cost+1;}
     = {
-        int off = $action[3](0);
-		int op1 = $action[4](0);
-        printf("    add %d(%%rbp), %%%d\n", off, op1 );
-        return op1;
+        $action[2](0);
+        printf("    mov %d(%%rbp), %%rax\n", $2->val);
+        printf("    mov %%rbp, %%rsp\n");
+        printf("    pop %%rbp\n");
+        printf("    ret\n");
+
+        $0->val = $2->val;
+        $0->valtype = meM;
     };
 
-reg:	LOAD(imm)
-	{ $cost[0].cost=$cost[2].cost+1; }
-	= {
-        int off = $action[2](0);
-        //printf("off = %d, $2->val = %d\n", off, $2->val);
-        printf("    mov %d(%%rbp) , %%%d\n", $2->val, registerCounter);
-        return registerCounter++;
-	};
+reg:    CALL(arglist)
+    { $cost[0].cost=$cost[2].cost+1; }
+    = {
+        printf("just in CALL%d\n", $0->val);
+        if( $0->val != 0 )
+            $action[2](0);
 
-reg:	LOAD(reg)
-	{ $cost[0].cost=$cost[2].cost+1; }
-	= {
-        int reg = $action[2](0);
-       // printf("off = %d, $2->val = %d\n", off, $2->val);
-        printf("    mov %%%d, %%%d\n", reg, registerCounter);
-        return registerCounter++;
-	};
+        unsigned int NumOperands = $0->I->getNumOperands();
+        llvm::Value* FunValue = $0->I->getOperand(NumOperands - 1);
+        //char* FunName = FunValue -> getName();
 
-mem:	STORE(reg, imm)
-	{ $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
-	= {
-		int reg    = $action[2](0);
-		int offset = $action[3](0);
-        printf("    mov %%%d , %d(%%rbp)\n", reg, offset);
-        return offset;
-	};
+        printf("    call %s\n", FunValue -> getName());
+        printf("    movq %%rax, %%%d\n", RegCounter );
 
-mem:	STORE(imm, imm)
-	{ $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
-	= {
-		int imm    = $action[2](0);
-		int offset = $action[3](0);
-        printf("    mov $%d , %d(%%rbp)\n", imm, offset);
-        return offset;
-	};
+        $0->val = RegCounter++;
+        $0->valtype = reG;
+    };
 
-imm : IMM
+reg:    ADD(reg, reg)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    addq %%%d, %%%d\n", $2->val, $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = reG;
+    };
+
+
+reg:    ADD(imm, reg)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    addq $%d, %%%d\n", $2->val, $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = reG;
+    };
+
+reg:    ADD(mem, reg)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    addq %d(%%rbp), %%%d\n", $2->val, $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = reG;
+    };
+
+reg:    ADD(LOAD(mem), reg)
+    { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
+    = {
+        $action[3](0);
+        $action[4](0);
+
+        printf("    addq %d(%%rbp), %%%d\n", $3->val, $4->val);
+
+        $0->val = $4->val;
+        $0->valtype = reG;
+    };
+
+reg:    LOAD(reg)
+    { $cost[0].cost=$cost[2].cost+1; }
+    = {
+        $action[2](0);
+
+        printf("    movq %%%d, %%%d\n", $2->val, RegCounter);
+
+        $0->val = RegCounter++;
+        $0->valtype = reG;
+    };
+
+reg:    LOAD(mem)
+    { $cost[0].cost=$cost[2].cost+1; }
+    = {
+        $action[2](0);
+        //LoadedMem* findLoadedMem(char* name, int off, int tarreg)
+        printf("    movq %d(%%rbp), %%%d\n", $2->val, RegCounter);
+
+        $0->val = RegCounter++;
+        $0->valtype = reG;
+    };
+
+reg:    LOAD(LOAD(mem))
+    { $cost[0].cost=$cost[3].cost+1; }
+    = {
+        $action[3](0);
+
+        printf("    movq %d(%%rbp), %%%d\n", $3->val, RegCounter);
+
+        $0->val = RegCounter++;
+        $0->valtype = reG;
+    };
+
+reg:    LOAD(LOAD(LOAD(mem)))
+    { $cost[0].cost=$cost[4].cost+1; }
+    = {
+        $action[4](0);
+
+        printf("    movq %d(%%rbp), %%%d\n", $4->val, RegCounter);
+
+        $0->val = RegCounter++;
+        $0->valtype = reG;
+    };
+
+reg:    ARG
+    { $cost[0].cost = 0; }
+    = {
+        $0->val = RegCounter++;
+    };
+
+mem:    ADD(reg, mem)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    addq %%%d, %d(%%rbp)\n", $2->val, $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = meM;
+    };
+
+mem:    ADD(reg, LOAD(mem))
+    { $cost[0].cost=$cost[2].cost+$cost[4].cost+1; }
+    = {
+        $action[2](0);
+        $action[4](0);
+
+        printf("    addq %%%d, %d(%%rbp)\n", $2->val, $4->val);
+
+        $0->val = $4->val;
+        $0->valtype = meM;
+    };
+
+
+mem:    STORE(imm, mem)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    movq $%d, %d(%%rbp)\n", $2->val, $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = meM;
+    };
+
+
+mem:    STORE(reg, mem)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        printf("processing store\n");
+        $action[2](0);
+        $action[3](0);
+
+        printf("    movq %%%d, %d(%%rbp)\n", $2->val, $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = meM;
+    };
+
+mem:    STORE(LOAD(mem), mem)
+    { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
+    = {
+        $action[3](0);
+        $action[4](0);
+
+        printf("    movq %d(%%rbp), %d(%%rbp)\n", $3->val, $4->val);
+
+        $0->val = $4->val;
+        $0->valtype = meM;
+    };
+
+
+mem:    OFFSET
     { $cost[0].cost=0; }
     = {
-        return $0->val;
+        return;
     };
+
+arglist:    MERGE(reg, arglist)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        printf("I'm there %d\n", RegCounter);
+        $action[2](0);
+        $action[3](0);
+
+        if( $3->val < 7 )
+            printf("    movq %%%d, %s\n", $2->val, ArgRegs[$3->val]);
+        else
+            printf("    movq %%%d, %d(%%rsp)\n", $2->val, 8*($3->val-6));
+
+        $0->val = $3->val+1;
+        $0->valtype = arglisT;
+    };
+
+arglist:    MERGE(LOAD(mem), arglist)
+    { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
+    = {
+        printf("I'm here %d\n", RegCounter);
+        $action[3](0);
+        $action[4](0);
+
+        if( $4->val < 7 )
+            printf("    movq %d(%%rbp), %s\n", $3->val, ArgRegs[$4->val]);
+        else
+            printf("    movq %d(%%rbp), %d(%%rsp)\n", $3->val, 8*($4->val-6));
+
+        $0->val = $4->val+1;
+        $0->valtype = arglisT;
+ 
+    };
+
+arglist:    MERGE(reg, argend)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    movq %%%d, %s\n", $2->val, ArgRegs[0]);
+
+        $0->val = 1;
+        $0->valtype = arglisT;
+    };
+
+arglist:    MERGE(LOAD(mem), argend)
+    { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
+    = {
+        printf("This should be the end\n");
+        $action[3](0);
+        $action[4](0);
+
+        printf("    movq %d(%%rbp), %s\n", $3->val, ArgRegs[0]);
+
+        $0->val = 1;
+        $0->valtype = arglisT;
+    };
+
+argend:     ARGEND
+    { $cost[0].cost=0; }
+    = {
+        return;
+    };
+
+imm:    IMM
+    { $cost[0].cost=0; }
+    = {
+        return;
+    };
+
 %%
 
 /* burm_trace - print trace message for matching p */
@@ -211,10 +511,11 @@ static Tree tree(int op, Tree l, Tree r) {
 	t->op = op;
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
+    t->valtype = nontypE;
 	t->x.state = 0;
+    t->I = 0;
 	return t;
 }
-
 /*
 int main(int argc, char *argv[]) {
 	Tree t;
@@ -234,10 +535,6 @@ int main(int argc, char *argv[]) {
 	Tree t1= (Tree) malloc(sizeof *t1);
 	Tree t2= (Tree) malloc(sizeof *t2);
 	Tree t3= (Tree) malloc(sizeof *t3);
-	Tree t4= (Tree) malloc(sizeof *t4);
-	Tree t5= (Tree) malloc(sizeof *t5);
-	Tree ta= (Tree) malloc(sizeof *ta);
-	Tree tb= (Tree) malloc(sizeof *tb);
 
     t0 -> op = IMM;
     t0 -> val = 1;
@@ -246,7 +543,7 @@ int main(int argc, char *argv[]) {
 	t0->x.state = 0;
 
     t1 -> op = IMM;
-    t1 -> val = -8;
+    t1 -> val = -;
     t1 ->kids[0] = 0;
     t1 ->kids[1] = 0;
 	t1->x.state = 0;
@@ -258,51 +555,25 @@ int main(int argc, char *argv[]) {
 	t2->x.state = 0;
 
     t3 -> op = IMM;
-    t3 -> val = -16;
+    t3 -> val = -4;
     t3 ->kids[0] = 0;
     t3 ->kids[1] = 0;
 	t3->x.state = 0;
-    
-    t4 -> op = STORE;
-    t4 -> val = 0;
-    t4 ->kids[0] = t0;
-    t4 ->kids[1] = t1;
-	t4->x.state = 0;
 
-    t5 -> op = STORE;
-    t5 -> val = 0;
-    t5 ->kids[0] = t2;
-    t5 ->kids[1] = t3;
-	t5->x.state = 0;
-    
-    ta-> op = IMM;
-    ta -> val = -8;
-    ta ->kids[0] = 0;
-    ta ->kids[1] = 0;
-	ta->x.state = 0;
-
-    tb -> op = IMM;
-    tb -> val = -16;
-    tb ->kids[0] = 0;
-    tb ->kids[1] = 0;
-	tb->x.state = 0;
-    
 
 	t = tree(ADD, 
              tree(LOAD,
-                  tb,
+                  tree(STORE, t0, t1 ),
                   0),
              tree(LOAD,
-                  ta,
+                  tree(STORE, t2, t3 ),
                   0)
 		);
-    Tree t6 = tree(RET,t,0);
+    Tree t5 = tree(RET,t,0);
 
     printf("    .text\n");
 
-    gen(t4);
 	gen(t5);
-    gen(t6);
 
     printf("\n");
     printf("    .global main\n");
@@ -319,5 +590,4 @@ int main(int argc, char *argv[]) {
     // traverse the table for global value
     // for printf("g_%s: .qual 0\n", g->val);
 	return 0;
-}
-*/
+}*/

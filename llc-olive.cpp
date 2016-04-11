@@ -95,6 +95,8 @@ bool findSymbolTable(SymbolTable *ST, Value* val, Tree t){
     for(SymbolTable* temp = ST; temp != NULL; temp = temp->next){
         if(temp->v == val){
             t->val = temp->addrCount;
+            if(t->val > 0 && t->val <= 6)
+                t->op = 998;//#define ARG 998
             return true;
         }
     }
@@ -177,7 +179,7 @@ bool mergeTreeLeft(TreeList* &TL, Tree root, Tree t, Value* operand){//only merg
     Instruction* rootI = root->I;
     if(operand == (Value*)rootI ){
         t->kids[0] = root;
-        //errs() << "yes merge left!\n";
+        errs() << "yes merge left!" << operand->getName() << root->I->getOpcode() << '\n';
         removeTree(TL, root);
         return true;
     }
@@ -193,31 +195,32 @@ bool mergeTreeListLeft(TreeList* &TL, Value* operand, Tree t){ // only merge 1st
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
         if(!tag)
             tag |= mergeTreeLeft( TL, temp->tptr, t, operand);       
-    } 
+    }
+    errs() << "yes merge list left!" << operand->getName() << '\n';
     return tag;
 }
 
-bool mergeTreeRight(TreeList* &TL, Tree root, Tree t, Value* operand){//only merge 1st children
+bool mergeTreeRight(TreeList* &TL, Tree root, Tree t, Value* operand){//only merge 2nd children
     bool tag = false;
     Instruction* rootI = root->I;
     if(operand == (Value*)rootI ){
         t->kids[1] = root;
-        //errs() << "yes merge left!\n";
+        errs() << "yes merge right!" << operand->getName() << '\n';
         removeTree(TL, root);
         return true;
     }
     if(root->kids[0])
-        tag |= mergeTreeLeft(TL, root->kids[0], t, operand);
+        tag |= mergeTreeRight(TL, root->kids[0], t, operand);
     if(root->kids[1] && !tag)
-        tag |= mergeTreeLeft(TL, root->kids[1], t, operand);
+        tag |= mergeTreeRight(TL, root->kids[1], t, operand);
     return tag;
 }
 
-bool mergeTreeListRight(TreeList* &TL, Value* operand, Tree t){ // only merge 1st children
+bool mergeTreeListRight(TreeList* &TL, Value* operand, Tree t){ // only merge 2nd children
     bool tag = false;
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
         if(!tag)
-            tag |= mergeTreeLeft( TL, temp->tptr, t, operand);       
+            tag |= mergeTreeRight( TL, temp->tptr, t, operand);       
     } 
     return tag;
 }
@@ -233,7 +236,7 @@ void printTree(Tree t, int depth){
             }
         }
     }
-    else if(t->op == 996)
+    else if(t->op == 996 || t->op == 999)
         errs() << t->val;
     errs() << '\n';
     if(t->kids[0])
@@ -247,8 +250,8 @@ void printTreeList(TreeList* &TL){
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
         printTree(temp->tptr, 0);
         //errs() << temp->tptr->op <<'\n';
-        errs()<<"\n";
         gen(temp->tptr);
+        errs()<<"\n";
     } 
 }
 
@@ -314,6 +317,78 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             errs() << " store an integer\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
+                            Tree imm_l = tree(999, 0, 0);//#define OFFSET 999
+                            t->kids[0] = imm_l;
+                            errs() << "store left\n";
+                            if(CI) {
+                                errs() << "CI exists!\n";
+                                errs() << CI->getValue() << '\n';
+                                imm_l->val = CI->getSExtValue();
+                                imm_l->op = 996;
+                            }
+                            else {
+                                if(TL->tptr == NULL){
+                                    if(!findSymbolTable(ST, I.getOperand(0), imm_l))
+                                        errs() << "unable to recognize left kids of store!\n";
+                                }
+                                else if(!mergeTreeListLeft(TL, I.getOperand(0), t)){
+                                    if(!findSymbolTable(ST, I.getOperand(0), imm_l))
+                                        errs() << " unable to recognize left kids of store!\n";
+                                }
+                            }
+
+                        }
+                        else if(I.getOperand(0)->getType()->isPointerTy()){
+                            errs() << "store from a pointer!\n";
+                            Tree offset = tree(999, 0, 0);
+                            t->kids[0] = offset;
+                            if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
+                                errs() << "find symboltable &&! merge tree left error\n";
+                        }
+                        //printTreeList(TL);   
+                        if(!(mergeTreeListRight(TL, I.getOperand(1), t)||findSymbolTable(ST, I.getOperand(1),offset_r))){
+                            errs() << "find symboltable error!\n";
+                            exit(1);
+                        }
+                    }
+                    else if(I.getOpcode() == 30){//#define load 30
+                        Tree offset = tree(999, 0, 0);// #define OFFSET 999
+                        t->kids[0] = offset;
+                        if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
+                            errs() << "load from a pointer!\n";
+                            findSymbolTable(ST, I.getOperand(0), t);
+                        }
+                        else if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0),offset))){
+                            errs() << "merge tree list & find symboltable error!\n";
+                            exit(1);
+                        }
+
+                    }
+                    else if(I.getOpcode() == 54){ // #define call 54
+                        Tree tmp = t;
+                        if(I.getNumOperands() > 1){
+                            t->kids[0] = tree(997, 0, 0);// #define ARGLIST 997
+                            tmp = t->kids[0];
+                            t->val = I.getNumOperands() - 1;
+                        }
+                        for(int i = I.getNumOperands() - 2; i >= 0; i--){
+                            Tree t_arglist = tree(997, 0, 0); // #define ARGLIST 997                            
+                            tmp->kids[1] = t_arglist;
+                            mergeTreeListLeft(TL, I.getOperand(i), tmp);
+                            if(i == 0){
+                                t_arglist->op = 995;//#define ARGEND 995
+                            }
+                            tmp = t_arglist;
+                        }
+                    
+                    
+                    }
+                    else if(I.getOpcode() == 1){
+
+                        if(t->I->getOperand(0)->getType()->isIntegerTy()){
+                            errs() << " find new constant\n";
+                            errs() << *(t->I->getOperand(0)->getType()) << '\n';
+                            ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
                             Tree imm_l = tree(996, 0, 0);//#define IMM 996
                             t->kids[0] = imm_l;
                             errs() << "store left\n";
@@ -341,57 +416,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
                                 errs() << "find symboltable &&! merge tree left error\n";
                         }
-                       
-                        if(!(mergeTreeListRight(TL, I.getOperand(1), t)||findSymbolTable(ST, I.getOperand(1),offset_r))){
-                            errs() << "find symboltable error!\n";
-                            exit(1);
-                        }
-                    }
-                    else if(I.getOpcode() == 30){//#define load 30
-                        Tree offset = tree(999, 0, 0);// #define IMM 999
-                        t->kids[0] = offset;
-                        if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
-                            errs() << "load from a pointer!\n";
-                            findSymbolTable(ST, I.getOperand(0), t);
-                        }
-                        else if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0),offset))){
-                            errs() << "merge tree list & find symboltable error!\n";
-                            exit(1);
-                        }
 
-                    }
-                    else if(I.getOpcode() == 54){ // #define call 54
-                        Tree tmp = t;
-                        if(I.getNumOperands() > 1){
-                            t->kids[0] = tree(997, 0, 0);// #define ARGLIST 997
-                            tmp = t->kids[0];
-                            t->val = I.getNumOperands() - 1;
-                        }
-                        for(int i = I.getNumOperands() - 2; i >= 0; i--){
-                            Tree t_arglist = tree(997, 0, 0); // #define ARGLIST 997                            
-                            tmp->kids[1] = t_arglist;
-                            mergeTreeListLeft(TL, I.getOperand(i), tmp);
-                            tmp = t_arglist;
-                            if(i == 0){
-                                mergeTreeListLeft(TL, I.getOperand(0), tmp);
-                                break;
-                            }
-                        }
-                    
-                    
-                    }
-                    else if(I.getOpcode() == 1){
-                        if(I.getOperand(0)->getType()->isPointerTy()){
-                            if(!(mergeTreeList(TL, t) || findSymbolTable(ST, I.getOperand(0), t))){
-                                errs() << "merge and find error in ret\n";
-                            }
-                        }
-                        else{
-                                Tree t_imm = tree(996, 0, 0);
-                                t->kids[0] = t_imm;
-                                ConstantInt* CI = dyn_cast<ConstantInt>(I.getOperand(0));
-                                t_imm->val = CI->getSExtValue(); 
-                        }
                     }
                     else if(!mergeTreeList(TL, t)){
                         errs() << "independent tree!\n";

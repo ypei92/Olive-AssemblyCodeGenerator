@@ -6,8 +6,8 @@ target triple = "x86_64-unknown-linux-gnu"
 define i32 @foo(i32 %a, i32 %b, i32 %c) #0 {
 entry:
   %add = add nsw i32 %b, %a
-  %sub = sub i32 %add, %c
-  ret i32 %sub
+  %add1 = add nsw i32 %add, %c
+  ret i32 %add1
 }
 
 ; Function Attrs: norecurse nounwind readnone uwtable
