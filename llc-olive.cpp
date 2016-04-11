@@ -308,10 +308,10 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                     }
                     else if(I.getOpcode() == 31 ){//#define store 31
-                        Tree offset_r = tree(999, 0, 0);//#define OFFSET 996
+                        Tree offset_r = tree(999, 0, 0);//#define OFFSET 999
                         t->kids[1] = offset_r;
                         if(t->I->getOperand(0)->getType()->isIntegerTy()){
-                            errs() << " find new constant\n";
+                            errs() << " store an integer\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
                             Tree imm_l = tree(996, 0, 0);//#define IMM 996
@@ -348,7 +348,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                     }
                     else if(I.getOpcode() == 30){//#define load 30
-                        Tree offset = tree(999, 0, 0);// #define IMM 996
+                        Tree offset = tree(999, 0, 0);// #define IMM 999
                         t->kids[0] = offset;
                         if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
                             errs() << "load from a pointer!\n";
@@ -365,6 +365,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         if(I.getNumOperands() > 1){
                             t->kids[0] = tree(997, 0, 0);// #define ARGLIST 997
                             tmp = t->kids[0];
+                            t->val = I.getNumOperands() - 1;
                         }
                         for(int i = I.getNumOperands() - 2; i >= 0; i--){
                             Tree t_arglist = tree(997, 0, 0); // #define ARGLIST 997                            
