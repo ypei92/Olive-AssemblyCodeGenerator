@@ -881,7 +881,8 @@ static Tree tree(int op, Tree l, Tree r) {
 	t->op = op;
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
-	t->x.state = 0;
+	t->I = NULL;
+    t->x.state = 0;
 	return t;
 }
 
