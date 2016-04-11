@@ -1,23 +1,6 @@
-; ModuleID = 't1.bc'
+; ModuleID = 't2.bc'
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
-
-; Function Attrs: nounwind uwtable
-define i32 @foo(i32 %a, i32 %b, i32 %c) #0 {
-entry:
-  %a.addr = alloca i32, align 4
-  %b.addr = alloca i32, align 4
-  %c.addr = alloca i32, align 4
-  store i32 %a, i32* %a.addr, align 4
-  store i32 %b, i32* %b.addr, align 4
-  store i32 %c, i32* %c.addr, align 4
-  %0 = load i32, i32* %a.addr, align 4
-  %1 = load i32, i32* %b.addr, align 4
-  %add = add nsw i32 %0, %1
-  %2 = load i32, i32* %c.addr, align 4
-  %add1 = add nsw i32 %add, %2
-  ret i32 %add1
-}
 
 ; Function Attrs: nounwind uwtable
 define i32 @main() #0 {
@@ -27,7 +10,6 @@ entry:
   %c = alloca i32, align 4
   %d = alloca i32, align 4
   %e = alloca i32, align 4
-  %f = alloca i32, align 4
   store i32 0, i32* %a, align 4
   store i32 2, i32* %b, align 4
   %0 = load i32, i32* %a, align 4
@@ -42,11 +24,6 @@ entry:
   %5 = load i32, i32* %b, align 4
   %add2 = add nsw i32 %4, %5
   store i32 %add2, i32* %e, align 4
-  %6 = load i32, i32* %c, align 4
-  %7 = load i32, i32* %d, align 4
-  %8 = load i32, i32* %e, align 4
-  %call = call i32 @foo(i32 %6, i32 %7, i32 %8)
-  store i32 %call, i32* %f, align 4
   ret i32 0
 }
 

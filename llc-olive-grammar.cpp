@@ -3,26 +3,38 @@
 #define burm_reg_NT 2
 #define burm_mem_NT 3
 #define burm_imm_NT 4
-#define burm___NT 5
+#define burm_arglist_NT 5
+#define burm_argend_NT 6
+#define burm___NT 7
 extern int burm_max_nt;
 
 
-int stmt_action(struct burm_state *_s, 
+void stmt_action(struct burm_state *_s, 
 
 int indent);
 
 
-int reg_action(struct burm_state *_s, 
+void reg_action(struct burm_state *_s, 
 
 int indent);
 
 
-int mem_action(struct burm_state *_s, 
+void mem_action(struct burm_state *_s, 
 
 int indent);
 
 
-int imm_action(struct burm_state *_s, 
+void imm_action(struct burm_state *_s, 
+
+int indent);
+
+
+void arglist_action(struct burm_state *_s, 
+
+int indent);
+
+
+void argend_action(struct burm_state *_s, 
 
 int indent);
 #ifndef ALLOC
@@ -39,9 +51,11 @@ static NODEPTR burm_np;
 #define burm_reg_NT 2
 #define burm_mem_NT 3
 #define burm_imm_NT 4
-#define burm___NT 5
+#define burm_arglist_NT 5
+#define burm_argend_NT 6
+#define burm___NT 7
 extern int burm_max_nt;
-int burm_max_nt = 5;
+int burm_max_nt = 7;
 
 std::string burm_ntname[] = {
   "",
@@ -49,6 +63,8 @@ std::string burm_ntname[] = {
   "reg",
   "mem",
   "imm",
+  "arglist",
+  "argend",
   "_",
   ""
 };
@@ -56,12 +72,19 @@ std::string burm_ntname[] = {
 static short burm_nts_0[] = { burm___NT, burm___NT, burm___NT, 0 };
 static short burm_nts_1[] = { burm_reg_NT, 0 };
 static short burm_nts_2[] = { burm_mem_NT, 0 };
-static short burm_nts_3[] = { 0 };
-static short burm_nts_4[] = { burm_reg_NT, burm_reg_NT, 0 };
-static short burm_nts_5[] = { burm_imm_NT, burm_reg_NT, 0 };
-static short burm_nts_6[] = { burm_imm_NT, 0 };
-static short burm_nts_7[] = { burm_reg_NT, burm_imm_NT, 0 };
-static short burm_nts_8[] = { burm_imm_NT, burm_imm_NT, 0 };
+static short burm_nts_3[] = { burm_imm_NT, 0 };
+static short burm_nts_4[] = { burm_arglist_NT, 0 };
+static short burm_nts_5[] = { burm_reg_NT, burm_reg_NT, 0 };
+static short burm_nts_6[] = { burm_imm_NT, burm_reg_NT, 0 };
+static short burm_nts_7[] = { burm_mem_NT, burm_reg_NT, 0 };
+static short burm_nts_8[] = { 0 };
+static short burm_nts_9[] = { burm_reg_NT, burm_mem_NT, 0 };
+static short burm_nts_10[] = { burm_imm_NT, burm_mem_NT, 0 };
+static short burm_nts_11[] = { burm_mem_NT, burm_mem_NT, 0 };
+static short burm_nts_12[] = { burm_reg_NT, burm_arglist_NT, 0 };
+static short burm_nts_13[] = { burm_mem_NT, burm_arglist_NT, 0 };
+static short burm_nts_14[] = { burm_reg_NT, burm_argend_NT, 0 };
+static short burm_nts_15[] = { burm_mem_NT, burm_argend_NT, 0 };
 
 short *burm_nts[] = {
   burm_nts_0,  /* 0 */
@@ -69,31 +92,57 @@ short *burm_nts[] = {
   burm_nts_2,  /* 2 */
   burm_nts_3,  /* 3 */
   burm_nts_1,  /* 4 */
-  burm_nts_4,  /* 5 */
-  burm_nts_5,  /* 6 */
-  burm_nts_6,  /* 7 */
-  burm_nts_1,  /* 8 */
+  burm_nts_2,  /* 5 */
+  burm_nts_4,  /* 6 */
+  burm_nts_5,  /* 7 */
+  burm_nts_6,  /* 8 */
   burm_nts_7,  /* 9 */
-  burm_nts_8,  /* 10 */
-  burm_nts_3,  /* 11 */
+  burm_nts_7,  /* 10 */
+  burm_nts_1,  /* 11 */
+  burm_nts_2,  /* 12 */
+  burm_nts_2,  /* 13 */
+  burm_nts_2,  /* 14 */
+  burm_nts_8,  /* 15 */
+  burm_nts_9,  /* 16 */
+  burm_nts_9,  /* 17 */
+  burm_nts_10,  /* 18 */
+  burm_nts_9,  /* 19 */
+  burm_nts_11,  /* 20 */
+  burm_nts_8,  /* 21 */
+  burm_nts_12,  /* 22 */
+  burm_nts_13,  /* 23 */
+  burm_nts_14,  /* 24 */
+  burm_nts_15,  /* 25 */
+  burm_nts_8,  /* 26 */
+  burm_nts_8,  /* 27 */
 };
 
 char burm_arity[] = {
   3,  /* 0=BURP */
-  0,  /* 1=RET */
-  2,  /* 2=ADD */
-  1,  /* 3=LOAD */
-  2,  /* 4=STORE */
-  0,  /* 5=IMM */
+  1,  /* 1=CALL */
+  1,  /* 2=RET */
+  2,  /* 3=ADD */
+  2,  /* 4=MERGE */
+  1,  /* 5=LOAD */
+  2,  /* 6=STORE */
+  0,  /* 7=IMM */
+  0,  /* 8=ARG */
+  0,  /* 9=OFFSET */
+  0,  /* 10=ARGEND */
 };
 
 std::string burm_opname[] = {
   /* 0 */  "BURP",
-  /* 1 */  "RET",
-  /* 2 */  "ADD",
-  /* 3 */  "LOAD",
-  /* 4 */  "STORE",
-  /* 5 */  "IMM",
+  /* 1 */  "CALL",
+  /* 2 */  "RET",
+  /* 3 */  "ADD",
+  /* 4 */  "MERGE",
+  /* 5 */  "LOAD",
+  /* 6 */  "STORE",
+  /* 7 */  "IMM",
+  /* 8 */  "ARG",
+  /* 9 */  "OFFSET",
+  /* 10 */  "ARGEND",
 };
 
 
@@ -101,15 +150,31 @@ std::string burm_string[] = {
   /* 0 */  "stmt: BURP(_,_,_)",
   /* 1 */  "stmt: reg",
   /* 2 */  "stmt: mem",
-  /* 3 */  "reg: RET",
+  /* 3 */  "reg: RET(imm)",
   /* 4 */  "reg: RET(reg)",
-  /* 5 */  "reg: ADD(reg,reg)",
-  /* 6 */  "reg: ADD(LOAD(imm),reg)",
-  /* 7 */  "reg: LOAD(imm)",
-  /* 8 */  "reg: LOAD(reg)",
-  /* 9 */  "mem: STORE(reg,imm)",
-  /* 10 */  "mem: STORE(imm,imm)",
-  /* 11 */  "imm: IMM",
+  /* 5 */  "reg: RET(mem)",
+  /* 6 */  "reg: CALL(arglist)",
+  /* 7 */  "reg: ADD(reg,reg)",
+  /* 8 */  "reg: ADD(imm,reg)",
+  /* 9 */  "reg: ADD(mem,reg)",
+  /* 10 */  "reg: ADD(LOAD(mem),reg)",
+  /* 11 */  "reg: LOAD(reg)",
+  /* 12 */  "reg: LOAD(mem)",
+  /* 13 */  "reg: LOAD(LOAD(mem))",
+  /* 14 */  "reg: LOAD(LOAD(LOAD(mem)))",
+  /* 15 */  "reg: ARG",
+  /* 16 */  "mem: ADD(reg,mem)",
+  /* 17 */  "mem: ADD(reg,LOAD(mem))",
+  /* 18 */  "mem: STORE(imm,mem)",
+  /* 19 */  "mem: STORE(reg,mem)",
+  /* 20 */  "mem: STORE(LOAD(mem),mem)",
+  /* 21 */  "mem: OFFSET",
+  /* 22 */  "arglist: MERGE(reg,arglist)",
+  /* 23 */  "arglist: MERGE(LOAD(mem),arglist)",
+  /* 24 */  "arglist: MERGE(reg,argend)",
+  /* 25 */  "arglist: MERGE(LOAD(mem),argend)",
+  /* 26 */  "argend: ARGEND",
+  /* 27 */  "imm: IMM",
 };
 
 
@@ -132,21 +197,53 @@ int burm_file_numbers[] = {
   /* 9 */  0,
   /* 10 */  0,
   /* 11 */  0,
+  /* 12 */  0,
+  /* 13 */  0,
+  /* 14 */  0,
+  /* 15 */  0,
+  /* 16 */  0,
+  /* 17 */  0,
+  /* 18 */  0,
+  /* 19 */  0,
+  /* 20 */  0,
+  /* 21 */  0,
+  /* 22 */  0,
+  /* 23 */  0,
+  /* 24 */  0,
+  /* 25 */  0,
+  /* 26 */  0,
+  /* 27 */  0,
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  92,
-  /* 1 */  98,
-  /* 2 */  105,
-  /* 3 */  112,
-  /* 4 */  122,
-  /* 5 */  133,
-  /* 6 */  142,
-  /* 7 */  151,
-  /* 8 */  160,
-  /* 9 */  169,
-  /* 10 */  178,
-  /* 11 */  187,
+  /* 0 */  162,
+  /* 1 */  168,
+  /* 2 */  182,
+  /* 3 */  196,
+  /* 4 */  209,
+  /* 5 */  222,
+  /* 6 */  235,
+  /* 7 */  253,
+  /* 8 */  266,
+  /* 9 */  278,
+  /* 10 */  290,
+  /* 11 */  302,
+  /* 12 */  313,
+  /* 13 */  324,
+  /* 14 */  335,
+  /* 15 */  346,
+  /* 16 */  352,
+  /* 17 */  364,
+  /* 18 */  377,
+  /* 19 */  390,
+  /* 20 */  403,
+  /* 21 */  416,
+  /* 22 */  422,
+  /* 23 */  438,
+  /* 24 */  455,
+  /* 25 */  467,
+  /* 26 */  480,
+  /* 27 */  486,
 };
 
 #pragma GCC diagnostic push
@@ -167,17 +264,41 @@ static short burm_decode_reg[] = {
   6,
   7,
   8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
 };
 
 static short burm_decode_mem[] = {
    -1,
-  9,
-  10,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
 };
 
 static short burm_decode_imm[] = {
    -1,
-  11,
+  27,
+};
+
+static short burm_decode_arglist[] = {
+   -1,
+  22,
+  23,
+  24,
+  25,
+};
+
+static short burm_decode_argend[] = {
+   -1,
+  26,
 };
 
 static short burm_decode__[] = {
@@ -185,7 +306,7 @@ static short burm_decode__[] = {
 };
 
 int burm_rule(struct burm_state *state, int goalnt) {
-  burm_assert(goalnt >= 1 && goalnt <= 5,
+  burm_assert(goalnt >= 1 && goalnt <= 7,
         PANIC("Bad goal nonterminal %d in burm_rule\n", goalnt));
   if (!state)
     return 0;
@@ -194,6 +315,8 @@ int burm_rule(struct burm_state *state, int goalnt) {
   case burm_reg_NT:  return burm_decode_reg[((struct burm_state *)state)->rule.burm_reg];
   case burm_mem_NT:  return burm_decode_mem[((struct burm_state *)state)->rule.burm_mem];
   case burm_imm_NT:  return burm_decode_imm[((struct burm_state *)state)->rule.burm_imm];
+  case burm_arglist_NT:  return burm_decode_arglist[((struct burm_state *)state)->rule.burm_arglist];
+  case burm_argend_NT:  return burm_decode_argend[((struct burm_state *)state)->rule.burm_argend];
   case burm___NT:  return burm_decode__[((struct burm_state *)state)->rule.burm__];
   default:
     burm_assert(0, PANIC("Bad goal nonterminal %d in burm_rule\n", goalnt));
@@ -245,7 +368,7 @@ int burm_cost_code(COST *_c, int _ern,struct burm_state *_s)
 {
 
 
- (*_c).cost=1;
+ (*_c).cost=_s->kids[0]->cost[burm_imm_NT].cost+1;
 }
   break;
   case 4:
@@ -259,45 +382,157 @@ int burm_cost_code(COST *_c, int _ern,struct burm_state *_s)
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_reg_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_mem_NT].cost+1;
 }
   break;
   case 6:
 {
 
 
- (*_c).cost=_s->kids[0]->kids[0]->cost[burm_imm_NT].cost+_s->kids[1]->cost[burm_reg_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_arglist_NT].cost+1; 
 }
   break;
   case 7:
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_imm_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_reg_NT].cost+1; 
 }
   break;
   case 8:
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_imm_NT].cost+_s->kids[1]->cost[burm_reg_NT].cost+1; 
 }
   break;
   case 9:
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_imm_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_reg_NT].cost+1; 
 }
   break;
   case 10:
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_imm_NT].cost+_s->kids[1]->cost[burm_imm_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_reg_NT].cost+1; 
 }
   break;
   case 11:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+1; 
+}
+  break;
+  case 12:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 13:
+{
+
+
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 14:
+{
+
+
+ (*_c).cost=_s->kids[0]->kids[0]->kids[0]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 15:
+{
+
+
+ (*_c).cost = 0; 
+}
+  break;
+  case 16:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 17:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->kids[0]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 18:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_imm_NT].cost+_s->kids[1]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 19:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 20:
+{
+
+
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_mem_NT].cost+1; 
+}
+  break;
+  case 21:
+{
+
+
+ (*_c).cost=0; 
+}
+  break;
+  case 22:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_arglist_NT].cost+1; 
+}
+  break;
+  case 23:
+{
+
+
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_arglist_NT].cost+1; 
+}
+  break;
+  case 24:
+{
+
+
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_argend_NT].cost+1; 
+}
+  break;
+  case 25:
+{
+
+
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_argend_NT].cost+1; 
+}
+  break;
+  case 26:
+{
+
+
+ (*_c).cost=0; 
+}
+  break;
+  case 27:
 {
 
 
@@ -309,22 +544,32 @@ int burm_cost_code(COST *_c, int _ern,struct burm_state *_s)
 }
 
 
-int stmt_action(struct burm_state *_s, 
+void stmt_action(struct burm_state *_s, 
 
 int indent);
 
 
-int reg_action(struct burm_state *_s, 
+void reg_action(struct burm_state *_s, 
 
 int indent);
 
 
-int mem_action(struct burm_state *_s, 
+void mem_action(struct burm_state *_s, 
 
 int indent);
 
 
-int imm_action(struct burm_state *_s, 
+void imm_action(struct burm_state *_s, 
+
+int indent);
+
+
+void arglist_action(struct burm_state *_s, 
+
+int indent);
+
+
+void argend_action(struct burm_state *_s, 
 
 int indent);
 
@@ -336,22 +581,28 @@ void burm_exec(struct burm_state *state, int nterm, ...)
   va_list(ap);
   va_start(ap,nterm);
 
-  burm_assert(nterm >= 1 && nterm <= 5,
+  burm_assert(nterm >= 1 && nterm <= 7,
         PANIC("Bad nonterminal %d in $exec\n", nterm));
 
   if (state)
     switch (nterm) {
     case burm_stmt_NT:
-      PANIC("$exec cannot take non-void functions as arguments\n");
+      stmt_action(state,va_arg(ap,int));
       break;
     case burm_reg_NT:
-      PANIC("$exec cannot take non-void functions as arguments\n");
+      reg_action(state,va_arg(ap,int));
       break;
     case burm_mem_NT:
-      PANIC("$exec cannot take non-void functions as arguments\n");
+      mem_action(state,va_arg(ap,int));
       break;
     case burm_imm_NT:
-      PANIC("$exec cannot take non-void functions as arguments\n");
+      imm_action(state,va_arg(ap,int));
+      break;
+    case burm_arglist_NT:
+      arglist_action(state,va_arg(ap,int));
+      break;
+    case burm_argend_NT:
+      argend_action(state,va_arg(ap,int));
       break;
     default:
       PANIC("Bad nonterminal %d in $exec\n", nterm);
@@ -363,6 +614,12 @@ void burm_exec(struct burm_state *state, int nterm, ...)
 }
 
 #define EXEC(s,n,a) ( \
+  (n == burm_stmt_NT)? burm_exec(s,n,a): \
+  (n == burm_reg_NT)? burm_exec(s,n,a): \
+  (n == burm_mem_NT)? burm_exec(s,n,a): \
+  (n == burm_imm_NT)? burm_exec(s,n,a): \
+  (n == burm_arglist_NT)? burm_exec(s,n,a): \
+  (n == burm_argend_NT)? burm_exec(s,n,a): \
   PANIC("Bad nonterminal %d in $exec\n", n))
 
 struct burm_state *burm_immed(struct burm_state *s,int n);
@@ -371,7 +628,7 @@ struct burm_state *burm_immed(struct burm_state *s,int n);
 #endif
 
 
-int stmt_action(struct burm_state *_s, 
+void stmt_action(struct burm_state *_s, 
 
 int indent)
 {
@@ -396,8 +653,15 @@ int indent)
 
 
 
+        llvm::Function* CurFun = _s->node->I->getFunction();
+        if( CurFun != PreFun ) {
+            PreFun = CurFun;
+            RegCounter = 1;
+            printf("_Your_%s:\n",CurFun->getName());
+            printf("    pushq %%rbp\n");
+            printf("    movq %%rsp, %%rbp\n");
+        }
         reg_action(_s,0);
-        return 0;
     
 }
   break;
@@ -406,8 +670,15 @@ int indent)
 
 
 
+        llvm::Function* CurFun = _s->node->I->getFunction();
+        if( CurFun != PreFun ) {
+            PreFun = CurFun;
+            RegCounter = 1;
+            printf("_Your_%s:\n",CurFun->getName());
+            printf("    pushq %%rbp\n");
+            printf("    movq %%rsp, %%rbp\n");
+        }
         mem_action(_s,0);
-        return 0;
     
 }
   break;
@@ -415,7 +686,7 @@ int indent)
 }
 
 
-int reg_action(struct burm_state *_s, 
+void reg_action(struct burm_state *_s, 
 
 int indent)
 {
@@ -430,11 +701,14 @@ int indent)
 
 
 
-        printf("    mov $0, %%rax\n");
+        imm_action(_s->kids[0],0);
+        printf("    mov $%d, %%rax\n", _s->kids[0]->node->val);
         printf("    mov %%rbp, %%rsp\n");
         printf("    pop %%rbp\n");
         printf("    ret\n");
-        return 0;
+
+        _s->node->val = _s->kids[0]->node->val;
+        _s->node->valtype = imM;
     
 }
   break;
@@ -443,12 +717,14 @@ int indent)
 
 
 
-		int op0 = reg_action(_s->kids[0],0);
-        printf("    mov %%%d, %%rax\n", op0);
+        reg_action(_s->kids[0],0);
+        printf("    mov %%%d, %%rax\n", _s->kids[0]->node->val);
         printf("    mov %%rbp, %%rsp\n");
         printf("    pop %%rbp\n");
         printf("    ret\n");
-        return 0;
+
+        _s->node->val = _s->kids[0]->node->val;
+        _s->node->valtype = reG;
     
 }
   break;
@@ -457,11 +733,15 @@ int indent)
 
 
 
-		int op0 = reg_action(_s->kids[0],0);
-		int op1 = reg_action(_s->kids[1],0);
-        printf("    add %%%d, %%%d\n", op0, op1 );
-        return op1;
-	
+        mem_action(_s->kids[0],0);
+        printf("    mov %d(%%rbp), %%rax\n", _s->kids[0]->node->val);
+        printf("    mov %%rbp, %%rsp\n");
+        printf("    pop %%rbp\n");
+        printf("    ret\n");
+
+        _s->node->val = _s->kids[0]->node->val;
+        _s->node->valtype = meM;
+    
 }
   break;
   case 6:
@@ -469,10 +749,19 @@ int indent)
 
 
 
-        int off = imm_action(_s->kids[0]->kids[0],0);
-		int op1 = reg_action(_s->kids[1],0);
-        printf("    add %d(%%rbp), %%%d\n", off, op1 );
-        return op1;
+        printf("just in CALL%d\n", _s->node->val);
+        if( _s->node->val != 0 )
+            arglist_action(_s->kids[0],0);
+
+        unsigned int NumOperands = _s->node->I->getNumOperands();
+        llvm::Value* FunValue = _s->node->I->getOperand(NumOperands - 1);
+        //char* FunName = FunValue -> getName();
+
+        printf("    call %s\n", FunValue -> getName());
+        printf("    movq %%rax, %%%d\n", RegCounter );
+
+        _s->node->val = RegCounter++;
+        _s->node->valtype = reG;
     
 }
   break;
@@ -481,11 +770,14 @@ int indent)
 
 
 
-        int off = imm_action(_s->kids[0],0);
-        //printf("off = %d, $2->val = %d\n", off, _s->kids[0]->node->val);
-        printf("    mov %d(%%rbp) , %%%d\n", _s->kids[0]->node->val, registerCounter);
-        return registerCounter++;
-	
+        reg_action(_s->kids[0],0);
+        reg_action(_s->kids[1],0);
+
+        printf("    addq %%%d, %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = reG;
+    
 }
   break;
   case 8:
@@ -493,18 +785,116 @@ int indent)
 
 
 
-        int reg = reg_action(_s->kids[0],0);
-       // printf("off = %d, $2->val = %d\n", off, _s->kids[0]->node->val);
-        printf("    mov %%%d, %%%d\n", reg, registerCounter);
-        return registerCounter++;
-	
+        imm_action(_s->kids[0],0);
+        reg_action(_s->kids[1],0);
+
+        printf("    addq $%d, %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 9:
+{
+
+
+
+        mem_action(_s->kids[0],0);
+        reg_action(_s->kids[1],0);
+
+        printf("    addq %d(%%rbp), %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 10:
+{
+
+
+
+        mem_action(_s->kids[0]->kids[0],0);
+        reg_action(_s->kids[1],0);
+
+        printf("    addq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 11:
+{
+
+
+
+        reg_action(_s->kids[0],0);
+
+        printf("    movq %%%d, %%%d\n", _s->kids[0]->node->val, RegCounter);
+
+        _s->node->val = RegCounter++;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 12:
+{
+
+
+
+        mem_action(_s->kids[0],0);
+        //LoadedMem* findLoadedMem(char* name, int off, int tarreg)
+        printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->node->val, RegCounter);
+
+        _s->node->val = RegCounter++;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 13:
+{
+
+
+
+        mem_action(_s->kids[0]->kids[0],0);
+
+        printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, RegCounter);
+
+        _s->node->val = RegCounter++;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 14:
+{
+
+
+
+        mem_action(_s->kids[0]->kids[0]->kids[0],0);
+
+        printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->kids[0]->node->val, RegCounter);
+
+        _s->node->val = RegCounter++;
+        _s->node->valtype = reG;
+    
+}
+  break;
+  case 15:
+{
+
+
+
+        _s->node->val = RegCounter++;
+    
 }
   break;
   }
 }
 
 
-int mem_action(struct burm_state *_s, 
+void mem_action(struct burm_state *_s, 
 
 int indent)
 {
@@ -514,35 +904,96 @@ int indent)
   if(_s->rule.burm_mem==0)
     NO_ACTION(mem);
   switch(_ern){
-  case 9:
+  case 16:
 {
 
 
 
-		int reg    = reg_action(_s->kids[0],0);
-		int offset = imm_action(_s->kids[1],0);
-        printf("    mov %%%d , %d(%%rbp)\n", reg, offset);
-        return offset;
-	
+        reg_action(_s->kids[0],0);
+        mem_action(_s->kids[1],0);
+
+        printf("    addq %%%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = meM;
+    
 }
   break;
-  case 10:
+  case 17:
 {
 
 
 
-		int imm    = imm_action(_s->kids[0],0);
-		int offset = imm_action(_s->kids[1],0);
-        printf("    mov $%d , %d(%%rbp)\n", imm, offset);
-        return offset;
-	
+        reg_action(_s->kids[0],0);
+        mem_action(_s->kids[1]->kids[0],0);
+
+        printf("    addq %%%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->kids[0]->node->val);
+
+        _s->node->val = _s->kids[1]->kids[0]->node->val;
+        _s->node->valtype = meM;
+    
+}
+  break;
+  case 18:
+{
+
+
+
+        imm_action(_s->kids[0],0);
+        mem_action(_s->kids[1],0);
+
+        printf("    movq $%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = meM;
+    
+}
+  break;
+  case 19:
+{
+
+
+
+        printf("processing store\n");
+        reg_action(_s->kids[0],0);
+        mem_action(_s->kids[1],0);
+
+        printf("    movq %%%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = meM;
+    
+}
+  break;
+  case 20:
+{
+
+
+
+        mem_action(_s->kids[0]->kids[0],0);
+        mem_action(_s->kids[1],0);
+
+        printf("    movq %d(%%rbp), %d(%%rbp)\n", _s->kids[0]->kids[0]->node->val, _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = meM;
+    
+}
+  break;
+  case 21:
+{
+
+
+
+        return;
+    
 }
   break;
   }
 }
 
 
-int imm_action(struct burm_state *_s, 
+void imm_action(struct burm_state *_s, 
 
 int indent)
 {
@@ -552,12 +1003,119 @@ int indent)
   if(_s->rule.burm_imm==0)
     NO_ACTION(imm);
   switch(_ern){
-  case 11:
+  case 27:
 {
 
 
 
-        return _s->node->val;
+        return;
+    
+}
+  break;
+  }
+}
+
+
+void arglist_action(struct burm_state *_s, 
+
+int indent)
+{
+  struct burm_state *_t;
+  int _ern=burm_decode_arglist[_s->rule.burm_arglist];
+  NODEPTR *_children;
+  if(_s->rule.burm_arglist==0)
+    NO_ACTION(arglist);
+  switch(_ern){
+  case 22:
+{
+
+
+
+        printf("I'm there %d\n", RegCounter);
+        reg_action(_s->kids[0],0);
+        arglist_action(_s->kids[1],0);
+
+        if( _s->kids[1]->node->val < 7 )
+            printf("    movq %%%d, %s\n", _s->kids[0]->node->val, ArgRegs[_s->kids[1]->node->val]);
+        else
+            printf("    movq %%%d, %d(%%rsp)\n", _s->kids[0]->node->val, 8*(_s->kids[1]->node->val-6));
+
+        _s->node->val = _s->kids[1]->node->val+1;
+        _s->node->valtype = arglisT;
+    
+}
+  break;
+  case 23:
+{
+
+
+
+        printf("I'm here %d\n", RegCounter);
+        mem_action(_s->kids[0]->kids[0],0);
+        arglist_action(_s->kids[1],0);
+
+        if( _s->kids[1]->node->val < 7 )
+            printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, ArgRegs[_s->kids[1]->node->val]);
+        else
+            printf("    movq %d(%%rbp), %d(%%rsp)\n", _s->kids[0]->kids[0]->node->val, 8*(_s->kids[1]->node->val-6));
+
+        _s->node->val = _s->kids[1]->node->val+1;
+        _s->node->valtype = arglisT;
+ 
+    
+}
+  break;
+  case 24:
+{
+
+
+
+        reg_action(_s->kids[0],0);
+        argend_action(_s->kids[1],0);
+
+        printf("    movq %%%d, %s\n", _s->kids[0]->node->val, ArgRegs[0]);
+
+        _s->node->val = 1;
+        _s->node->valtype = arglisT;
+    
+}
+  break;
+  case 25:
+{
+
+
+
+        printf("This should be the end\n");
+        mem_action(_s->kids[0]->kids[0],0);
+        argend_action(_s->kids[1],0);
+
+        printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, ArgRegs[0]);
+
+        _s->node->val = 1;
+        _s->node->valtype = arglisT;
+    
+}
+  break;
+  }
+}
+
+
+void argend_action(struct burm_state *_s, 
+
+int indent)
+{
+  struct burm_state *_t;
+  int _ern=burm_decode_argend[_s->rule.burm_argend];
+  NODEPTR *_children;
+  if(_s->rule.burm_argend==0)
+    NO_ACTION(argend);
+  switch(_ern){
+  case 26:
+{
+
+
+
+        return;
     
 }
   break;
@@ -598,6 +1156,8 @@ struct burm_state *burm_alloc_state(NODEPTR u,int op,int arity)
   p->rule.burm_reg =
   p->rule.burm_mem =
   p->rule.burm_imm =
+  p->rule.burm_arglist =
+  p->rule.burm_argend =
   p->rule.burm__ =
     0;
   p->cost[1] =
@@ -605,6 +1165,8 @@ struct burm_state *burm_alloc_state(NODEPTR u,int op,int arity)
   p->cost[3] =
   p->cost[4] =
   p->cost[5] =
+  p->cost[6] =
+  p->cost[7] =
     COST_INFINITY;
   return p;
 }
@@ -631,40 +1193,15 @@ burm_trace(burm_np, 0, c);       s->cost[burm_stmt_NT] = c ;
       return s;
     }
     break;
-  case 1:		/* RET */
-#ifdef LEAF_TRAP
-    if(s=LEAF_TRAP(u,op))
-      return s;
-#endif
-    s=burm_alloc_state(u,op,arity);
-    SET_STATE(u,s);
-    k=0;
-    {  		/* reg: RET(reg) */
-      if(burm_cost_code(&c,4,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
-burm_trace(burm_np, 4, c);         s->cost[burm_reg_NT] = c ;
-        s->rule.burm_reg = 2;
-        burm_closure_reg(s, c );
-      }
-    }
-    {  		/* reg: RET */
-      if(burm_cost_code(&c,3,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
-burm_trace(burm_np, 3, c);         s->cost[burm_reg_NT] = c ;
-        s->rule.burm_reg = 1;
-        burm_closure_reg(s, c );
-      }
-    }
-    break;
-  case 2:		/* ADD */
+  case 1:		/* CALL */
     s=burm_alloc_state(u,op,arity);
     SET_STATE(u,s);
     k=s->kids;
     children=GET_KIDS(u);
     for(i=0;i<arity;i++)
       k[i]=burm_label1(children[i]);
-    if (   /* reg: ADD(LOAD(imm),reg) */
-      k[0]->op == 3 && 	/* LOAD */
-      k[0]->kids[0]->rule.burm_imm && 
-      k[1]->rule.burm_reg
+    if (   /* reg: CALL(arglist) */
+      k[0]->rule.burm_arglist
     ) {
       if(burm_cost_code(&c,6,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
 burm_trace(burm_np, 6, c);         s->cost[burm_reg_NT] = c ;
@@ -672,9 +1209,16 @@ burm_trace(burm_np, 6, c);         s->cost[burm_reg_NT] = c ;
         burm_closure_reg(s, c );
       }
     }
-    if (   /* reg: ADD(reg,reg) */
-      k[0]->rule.burm_reg && 
-      k[1]->rule.burm_reg
+    break;
+  case 2:		/* RET */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
+    if (   /* reg: RET(mem) */
+      k[0]->rule.burm_mem
     ) {
       if(burm_cost_code(&c,5,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
 burm_trace(burm_np, 5, c);         s->cost[burm_reg_NT] = c ;
@@ -682,16 +1226,77 @@ burm_trace(burm_np, 5, c);         s->cost[burm_reg_NT] = c ;
         burm_closure_reg(s, c );
       }
     }
+    if (   /* reg: RET(reg) */
+      k[0]->rule.burm_reg
+    ) {
+      if(burm_cost_code(&c,4,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 4, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 2;
+        burm_closure_reg(s, c );
+      }
+    }
+    if (   /* reg: RET(imm) */
+      k[0]->rule.burm_imm
+    ) {
+      if(burm_cost_code(&c,3,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 3, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 1;
+        burm_closure_reg(s, c );
+      }
+    }
     break;
-  case 3:		/* LOAD */
+  case 3:		/* ADD */
     s=burm_alloc_state(u,op,arity);
     SET_STATE(u,s);
     k=s->kids;
     children=GET_KIDS(u);
     for(i=0;i<arity;i++)
       k[i]=burm_label1(children[i]);
-    if (   /* reg: LOAD(reg) */
-      k[0]->rule.burm_reg
+    if (   /* mem: ADD(reg,LOAD(mem)) */
+      k[0]->rule.burm_reg && 
+      k[1]->op == 5 && 	/* LOAD */
+      k[1]->kids[0]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,17,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 17, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 2;
+        burm_closure_mem(s, c );
+      }
+    }
+    if (   /* mem: ADD(reg,mem) */
+      k[0]->rule.burm_reg && 
+      k[1]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,16,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 16, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 1;
+        burm_closure_mem(s, c );
+      }
+    }
+    if (   /* reg: ADD(LOAD(mem),reg) */
+      k[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->rule.burm_mem && 
+      k[1]->rule.burm_reg
+    ) {
+      if(burm_cost_code(&c,10,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 10, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 8;
+        burm_closure_reg(s, c );
+      }
+    }
+    if (   /* reg: ADD(mem,reg) */
+      k[0]->rule.burm_mem && 
+      k[1]->rule.burm_reg
+    ) {
+      if(burm_cost_code(&c,9,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 9, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 7;
+        burm_closure_reg(s, c );
+      }
+    }
+    if (   /* reg: ADD(imm,reg) */
+      k[0]->rule.burm_imm && 
+      k[1]->rule.burm_reg
     ) {
       if(burm_cost_code(&c,8,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
 burm_trace(burm_np, 8, c);         s->cost[burm_reg_NT] = c ;
@@ -699,8 +1304,9 @@ burm_trace(burm_np, 8, c);         s->cost[burm_reg_NT] = c ;
         burm_closure_reg(s, c );
       }
     }
-    if (   /* reg: LOAD(imm) */
-      k[0]->rule.burm_imm
+    if (   /* reg: ADD(reg,reg) */
+      k[0]->rule.burm_reg && 
+      k[1]->rule.burm_reg
     ) {
       if(burm_cost_code(&c,7,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
 burm_trace(burm_np, 7, c);         s->cost[burm_reg_NT] = c ;
@@ -709,35 +1315,139 @@ burm_trace(burm_np, 7, c);         s->cost[burm_reg_NT] = c ;
       }
     }
     break;
-  case 4:		/* STORE */
+  case 4:		/* MERGE */
     s=burm_alloc_state(u,op,arity);
     SET_STATE(u,s);
     k=s->kids;
     children=GET_KIDS(u);
     for(i=0;i<arity;i++)
       k[i]=burm_label1(children[i]);
-    if (   /* mem: STORE(imm,imm) */
-      k[0]->rule.burm_imm && 
-      k[1]->rule.burm_imm
+    if (   /* arglist: MERGE(LOAD(mem),argend) */
+      k[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->rule.burm_mem && 
+      k[1]->rule.burm_argend
     ) {
-      if(burm_cost_code(&c,10,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
-burm_trace(burm_np, 10, c);         s->cost[burm_mem_NT] = c ;
-        s->rule.burm_mem = 2;
+      if(burm_cost_code(&c,25,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 25, c);         s->cost[burm_arglist_NT] = c ;
+        s->rule.burm_arglist = 4;
+      }
+    }
+    if (   /* arglist: MERGE(reg,argend) */
+      k[0]->rule.burm_reg && 
+      k[1]->rule.burm_argend
+    ) {
+      if(burm_cost_code(&c,24,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 24, c);         s->cost[burm_arglist_NT] = c ;
+        s->rule.burm_arglist = 3;
+      }
+    }
+    if (   /* arglist: MERGE(LOAD(mem),arglist) */
+      k[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->rule.burm_mem && 
+      k[1]->rule.burm_arglist
+    ) {
+      if(burm_cost_code(&c,23,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 23, c);         s->cost[burm_arglist_NT] = c ;
+        s->rule.burm_arglist = 2;
+      }
+    }
+    if (   /* arglist: MERGE(reg,arglist) */
+      k[0]->rule.burm_reg && 
+      k[1]->rule.burm_arglist
+    ) {
+      if(burm_cost_code(&c,22,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 22, c);         s->cost[burm_arglist_NT] = c ;
+        s->rule.burm_arglist = 1;
+      }
+    }
+    break;
+  case 5:		/* LOAD */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
+    if (   /* reg: LOAD(LOAD(LOAD(mem))) */
+      k[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->kids[0]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,14,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 14, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 12;
+        burm_closure_reg(s, c );
+      }
+    }
+    if (   /* reg: LOAD(LOAD(mem)) */
+      k[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,13,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 13, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 11;
+        burm_closure_reg(s, c );
+      }
+    }
+    if (   /* reg: LOAD(mem) */
+      k[0]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,12,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 12, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 10;
+        burm_closure_reg(s, c );
+      }
+    }
+    if (   /* reg: LOAD(reg) */
+      k[0]->rule.burm_reg
+    ) {
+      if(burm_cost_code(&c,11,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 11, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 9;
+        burm_closure_reg(s, c );
+      }
+    }
+    break;
+  case 6:		/* STORE */
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=s->kids;
+    children=GET_KIDS(u);
+    for(i=0;i<arity;i++)
+      k[i]=burm_label1(children[i]);
+    if (   /* mem: STORE(LOAD(mem),mem) */
+      k[0]->op == 5 && 	/* LOAD */
+      k[0]->kids[0]->rule.burm_mem && 
+      k[1]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,20,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 20, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 5;
         burm_closure_mem(s, c );
       }
     }
-    if (   /* mem: STORE(reg,imm) */
+    if (   /* mem: STORE(reg,mem) */
       k[0]->rule.burm_reg && 
-      k[1]->rule.burm_imm
+      k[1]->rule.burm_mem
     ) {
-      if(burm_cost_code(&c,9,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
-burm_trace(burm_np, 9, c);         s->cost[burm_mem_NT] = c ;
-        s->rule.burm_mem = 1;
+      if(burm_cost_code(&c,19,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 19, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 4;
+        burm_closure_mem(s, c );
+      }
+    }
+    if (   /* mem: STORE(imm,mem) */
+      k[0]->rule.burm_imm && 
+      k[1]->rule.burm_mem
+    ) {
+      if(burm_cost_code(&c,18,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 18, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 3;
         burm_closure_mem(s, c );
       }
     }
     break;
-  case 5:		/* IMM */
+  case 7:		/* IMM */
 #ifdef LEAF_TRAP
     if(s=LEAF_TRAP(u,op))
       return s;
@@ -746,9 +1456,56 @@ burm_trace(burm_np, 9, c);         s->cost[burm_mem_NT] = c ;
     SET_STATE(u,s);
     k=0;
     {  		/* imm: IMM */
-      if(burm_cost_code(&c,11,s) && COST_LESS(c,s->cost[burm_imm_NT])) {
-burm_trace(burm_np, 11, c);         s->cost[burm_imm_NT] = c ;
+      if(burm_cost_code(&c,27,s) && COST_LESS(c,s->cost[burm_imm_NT])) {
+burm_trace(burm_np, 27, c);         s->cost[burm_imm_NT] = c ;
         s->rule.burm_imm = 1;
+      }
+    }
+    break;
+  case 8:		/* ARG */
+#ifdef LEAF_TRAP
+    if(s=LEAF_TRAP(u,op))
+      return s;
+#endif
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=0;
+    {  		/* reg: ARG */
+      if(burm_cost_code(&c,15,s) && COST_LESS(c,s->cost[burm_reg_NT])) {
+burm_trace(burm_np, 15, c);         s->cost[burm_reg_NT] = c ;
+        s->rule.burm_reg = 13;
+        burm_closure_reg(s, c );
+      }
+    }
+    break;
+  case 9:		/* OFFSET */
+#ifdef LEAF_TRAP
+    if(s=LEAF_TRAP(u,op))
+      return s;
+#endif
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=0;
+    {  		/* mem: OFFSET */
+      if(burm_cost_code(&c,21,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 21, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 6;
+        burm_closure_mem(s, c );
+      }
+    }
+    break;
+  case 10:		/* ARGEND */
+#ifdef LEAF_TRAP
+    if(s=LEAF_TRAP(u,op))
+      return s;
+#endif
+    s=burm_alloc_state(u,op,arity);
+    SET_STATE(u,s);
+    k=0;
+    {  		/* argend: ARGEND */
+      if(burm_cost_code(&c,26,s) && COST_LESS(c,s->cost[burm_argend_NT])) {
+burm_trace(burm_np, 26, c);         s->cost[burm_argend_NT] = c ;
+        s->rule.burm_argend = 1;
       }
     }
     break;
@@ -814,23 +1571,46 @@ NODEPTR *burm_kids(NODEPTR p, int eruleno, NODEPTR kids[]) {
   case 1: /* stmt: reg */
     kids[0] = p;
     break;
-  case 11: /* imm: IMM */
+  case 12: /* reg: LOAD(mem) */
+  case 11: /* reg: LOAD(reg) */
+  case 6: /* reg: CALL(arglist) */
+  case 5: /* reg: RET(mem) */
   case 4: /* reg: RET(reg) */
-  case 3: /* reg: RET */
+  case 3: /* reg: RET(imm) */
+    kids[0] = burm_child(p,0);
     break;
-  case 10: /* mem: STORE(imm,imm) */
-  case 9: /* mem: STORE(reg,imm) */
-  case 5: /* reg: ADD(reg,reg) */
+  case 24: /* arglist: MERGE(reg,argend) */
+  case 22: /* arglist: MERGE(reg,arglist) */
+  case 19: /* mem: STORE(reg,mem) */
+  case 18: /* mem: STORE(imm,mem) */
+  case 16: /* mem: ADD(reg,mem) */
+  case 9: /* reg: ADD(mem,reg) */
+  case 8: /* reg: ADD(imm,reg) */
+  case 7: /* reg: ADD(reg,reg) */
     kids[0] = burm_child(p,0);
     kids[1] = burm_child(p,1);
     break;
-  case 6: /* reg: ADD(LOAD(imm),reg) */
+  case 25: /* arglist: MERGE(LOAD(mem),argend) */
+  case 23: /* arglist: MERGE(LOAD(mem),arglist) */
+  case 20: /* mem: STORE(LOAD(mem),mem) */
+  case 10: /* reg: ADD(LOAD(mem),reg) */
     kids[0] = burm_child(burm_child(p,0),0);
     kids[1] = burm_child(p,1);
     break;
-  case 8: /* reg: LOAD(reg) */
-  case 7: /* reg: LOAD(imm) */
+  case 13: /* reg: LOAD(LOAD(mem)) */
+    kids[0] = burm_child(burm_child(p,0),0);
+    break;
+  case 14: /* reg: LOAD(LOAD(LOAD(mem))) */
+    kids[0] = burm_child(burm_child(burm_child(p,0),0),0);
+    break;
+  case 27: /* imm: IMM */
+  case 26: /* argend: ARGEND */
+  case 21: /* mem: OFFSET */
+  case 15: /* reg: ARG */
+    break;
+  case 17: /* mem: ADD(reg,LOAD(mem)) */
     kids[0] = burm_child(p,0);
+    kids[1] = burm_child(burm_child(p,1),0);
     break;
   default:
     burm_assert(0, PANIC("Bad external rule number %d in burm_kids\n", eruleno));
@@ -881,10 +1661,11 @@ static Tree tree(int op, Tree l, Tree r) {
 	t->op = op;
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
+    t->valtype = nontypE;
 	t->x.state = 0;
+    t->I = 0;
 	return t;
 }
-
 /*
 int main(int argc, char *argv[]) {
 	Tree t;
@@ -904,10 +1685,6 @@ int main(int argc, char *argv[]) {
 	Tree t1= (Tree) malloc(sizeof *t1);
 	Tree t2= (Tree) malloc(sizeof *t2);
 	Tree t3= (Tree) malloc(sizeof *t3);
-	Tree t4= (Tree) malloc(sizeof *t4);
-	Tree t5= (Tree) malloc(sizeof *t5);
-	Tree ta= (Tree) malloc(sizeof *ta);
-	Tree tb= (Tree) malloc(sizeof *tb);
 
     t0 -> op = IMM;
     t0 -> val = 1;
@@ -916,7 +1693,7 @@ int main(int argc, char *argv[]) {
 	t0->x.state = 0;
 
     t1 -> op = IMM;
-    t1 -> val = -8;
+    t1 -> val = -;
     t1 ->kids[0] = 0;
     t1 ->kids[1] = 0;
 	t1->x.state = 0;
@@ -928,51 +1705,25 @@ int main(int argc, char *argv[]) {
 	t2->x.state = 0;
 
     t3 -> op = IMM;
-    t3 -> val = -16;
+    t3 -> val = -4;
     t3 ->kids[0] = 0;
     t3 ->kids[1] = 0;
 	t3->x.state = 0;
-    
-    t4 -> op = STORE;
-    t4 -> val = 0;
-    t4 ->kids[0] = t0;
-    t4 ->kids[1] = t1;
-	t4->x.state = 0;
 
-    t5 -> op = STORE;
-    t5 -> val = 0;
-    t5 ->kids[0] = t2;
-    t5 ->kids[1] = t3;
-	t5->x.state = 0;
-    
-    ta-> op = IMM;
-    ta -> val = -8;
-    ta ->kids[0] = 0;
-    ta ->kids[1] = 0;
-	ta->x.state = 0;
-
-    tb -> op = IMM;
-    tb -> val = -16;
-    tb ->kids[0] = 0;
-    tb ->kids[1] = 0;
-	tb->x.state = 0;
-    
 
 	t = tree(ADD, 
              tree(LOAD,
-                  tb,
+                  tree(STORE, t0, t1 ),
                   0),
              tree(LOAD,
-                  ta,
+                  tree(STORE, t2, t3 ),
                   0)
 		);
-    Tree t6 = tree(RET,t,0);
+    Tree t5 = tree(RET,t,0);
 
     printf("    .text\n");
 
-    gen(t4);
 	gen(t5);
-    gen(t6);
 
     printf("\n");
     printf("    .global main\n");
@@ -989,5 +1740,4 @@ int main(int argc, char *argv[]) {
     // traverse the table for global value
     // for printf("g_%s: .qual 0\n", g->val);
 	return 0;
-}
-*/
+}*/
