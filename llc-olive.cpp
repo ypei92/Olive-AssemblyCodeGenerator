@@ -420,9 +420,52 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
     for(auto &f:M->getFunctionList()){
-        
+      
+        int NumInst = 0, NumBB = 0;
+        for(auto I = inst_begin(f); I != inst_end(f); I++){
+            NumInst++;
+        }
+        for(auto &bb : f.getBasicBlockList()){
+            NumBB++;
+        }
+        LiveTable* LiveIn  = new LiveTable [NumBB];//LiveIn[a] get live in of BacisBlock a
+        InstMap* IM = new InstMap [NumInst];
+        int j = 0;
+        for(auto I = inst_begin(f); I != inst_end(f); I++, j++){
+            IM[j].I = &*I;
+            IM[j].N = j;
+        }
+        int i = 0;
+        errs() << "number of instructions : " << NumInst << '\n';
+        errs() << "number of bb: " << NumBB <<'\n';
+        auto& bbList = f.getBasicBlockList();
+        for(auto bb = bbList.begin(); bb != bbList.end(); bb++, i++){
+            errs() << "number of var in function: " << NumInst + f.getArgumentList().size() << "\n";
+            LiveIn[i].NumVars = NumInst + f.getArgumentList().size();
+            LiveIn[i].LR = new LiveRange [LiveIn[i].NumVars];
+            LiveIn[i].bb = &*bb;
+            LiveIn[i].argLR = LiveIn[i].LR + NumInst;
+            j = 0;
+            for(auto I = inst_begin(&f), E = inst_end(&f); I != E; j++, I++){
+                LiveIn[i].LR[j].v = (Value*) &*I;
+                LiveIn[i].LR[j].start = -1;
+                LiveIn[i].LR[j].end = -1;
+                if((&*I) == (&* (LiveIn[i].bb->begin()))){
+                    LiveIn[i].bbstart = j;
+                }
+                if((&*I) == (&* (LiveIn[i].bb->end()))){
+                    LiveIn[i].bbend = j;
+                }
+
+                //errs() << "what tf?\n";
+            }
+          
+ 
+        }
+            
         TreeList* TL = new TreeList;
         SymbolTable* ST = new SymbolTable;
+        int instCount = -1;
         for(auto &arg: f.getArgumentList()){
             if(arg.getArgNo() < 6)
                 addArg2SymbolTable(ST,(Value* ) &arg, arg.getArgNo() + 1);
@@ -431,6 +474,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         }
         for(auto &bb:f.getBasicBlockList())
             for( auto &I: bb.getInstList()) {
+                instCount++;
                 errs() << '\n';
                 I.print(errs());
                 errs() << "\n" 
@@ -452,6 +496,9 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 Tree t = tree(I.getOpcode(), 0, 0, ST);
                 t->I = &I;
                 addTree(TL ,t);
+
+                t->LR = (LT[0].LR[instCount]);
+
                 switch(I.getOpcode()){
                     case 29: {// #define alloca 29
                         addSymbolTable(ST, (Value* )&I);
@@ -679,47 +726,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 }
             }
 
-        int NumInst = 0, NumBB = 0;
-        for(auto I = inst_begin(f); I != inst_end(f); I++){
-            NumInst++;
-        }
-        for(auto &bb : f.getBasicBlockList()){
-            NumBB++;
-        }
-        LiveTable* LiveIn  = new LiveTable [NumBB];//LiveIn[a] get live in of BacisBlock a
-        InstMap* IM = new InstMap [NumInst];
-        int j = 0;
-        for(auto I = inst_begin(f); I != inst_end(f); I++, j++){
-            IM[j].I = &*I;
-            IM[j].N = j;
-        }
-        int i = 0;
-        errs() << "number of instructions : " << NumInst << '\n';
-        errs() << "number of bb: " << NumBB <<'\n';
-        auto& bbList = f.getBasicBlockList();
-        for(auto bb = bbList.begin(); bb != bbList.end(); bb++, i++){
-            errs() << "number of var in function: " << NumInst + f.getArgumentList().size() << "\n";
-            LiveIn[i].NumVars = NumInst + f.getArgumentList().size();
-            LiveIn[i].LR = new LiveRange [LiveIn[i].NumVars];
-            LiveIn[i].bb = &*bb;
-            LiveIn[i].argLR = LiveIn[i].LR + NumInst;
-            j = 0;
-            for(auto I = inst_begin(&f), E = inst_end(&f); I != E; j++, I++){
-                LiveIn[i].LR[j].v = (Value*) &*I;
-                LiveIn[i].LR[j].start = -1;
-                LiveIn[i].LR[j].end = -1;
-                if((&*I) == (&* (LiveIn[i].bb->begin()))){
-                    LiveIn[i].bbstart = j;
-                }
-                if((&*I) == (&* (LiveIn[i].bb->end()))){
-                    LiveIn[i].bbend = j;
-                }
-
-                //errs() << "what tf?\n";
-            }
-          
- 
-        }
+       
         bool changed = false;
         do
         {
