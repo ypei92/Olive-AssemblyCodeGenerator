@@ -14,6 +14,6 @@ int main()
 
     int c = a+b;
     int d = c+a;
-    int e = c+b;
+    int e = d+b;
     int f = foo(c, d, e);
 }

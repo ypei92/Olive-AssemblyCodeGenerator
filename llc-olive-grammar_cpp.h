@@ -1948,6 +1948,8 @@ static Tree tree(int op, Tree l, Tree r, SymbolTable* ST) {
 	t->op = op;
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
+	t->I = NULL;
+    t->x.state = 0;
     t->valtype = nontypE;
 	t->x.state = 0;
     t->I = 0;
