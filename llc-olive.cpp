@@ -9,12 +9,16 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Analysis/Interval.h"
+#include "llvm/IR/User.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/InstIterator.h"
 #include "llc-olive-grammar.h"
 #include "llc-olive-grammar_cpp.h"
 #include <memory>
@@ -40,6 +44,40 @@ int main( int argc, char **argv) {
     return 0;
 
 }
+
+
+//typedef std::map<Instruction *, int> InstMap;
+struct InstMap{
+    Instruction* I;
+    int N;
+    InstMap(){
+        I = NULL;
+        N = 0;
+    }
+};
+
+struct LiveRange{
+    Value *v;
+    int start;
+    int end;
+    LiveRange(){
+        v = NULL;
+        start = 0;
+        end = 0;
+    }
+};
+struct LiveTable{
+    BasicBlock * bb;
+    LiveRange* LR;
+    int NumVar;
+    int bbstart;
+    LiveTable(){
+        bb = NULL;
+        LR = NULL;
+        NumVar = 0;
+        bbstart = 0;
+    }
+};
 struct SymbolTable{
     Value* v;
     int addrCount;
@@ -245,16 +283,91 @@ void printTree(Tree t, int depth){
         printTree(t->kids[1], depth + 1);
 }
 
-void printTreeList(TreeList* &TL){
-    errs() << "this is the output\n";
-    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
-        printTree(temp->tptr, 0);
-        //errs() << temp->tptr->op <<'\n';
-        gen(temp->tptr);
-        errs()<<"\n";
-    } 
+void printLR(LiveRange* LR, int n){
+    for(int i = 0; i < n; i++){
+        LR[i].v->print(errs());
+        errs() << "\n";
+        errs() << "var "<< i << ": "<< LR[i].start << " "<< LR[i].end<< '\n';
+    }
 }
 
+void printTreeList(TreeList* TL, LiveRange* LR, int n){
+    errs() << "this is the output\n";
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        //printTree(temp->tptr, 0);
+        //errs() << temp->tptr->op <<'\n';
+        //gen(temp->tptr);
+        errs()<<"\n";
+    }
+    printLR(LR, n);
+}
+
+bool LiveUnion(BasicBlock* bb, BasicBlock* succ, LiveTable* LT, int NumBB){
+    LiveRange* bb_LR = NULL;
+    LiveRange* succ_LR = NULL;
+    bool changed  = false;
+    int bb_ID = 0, succ_ID = 0;
+    for(int i = 0; i < NumBB; i++){
+        if(bb == LT[i].bb){
+            bb_LR = LT[i].LR;
+            bb_ID = i;
+        }
+        if(succ == LT[i].bb){
+            succ_LR = LT[i].LR;
+            succ_ID = i;
+        }
+    }    
+    for(int i = 0; i < LT[0].NumVar; i++){
+        if(succ_LR[i].end > bb_LR[i].end){
+            bb_LR[i].end = succ_LR[i].end;
+            changed = true;
+        }
+    }
+    return changed;
+    
+}
+bool addRange(Value* operand, Instruction * I, LiveTable* LT){
+    LiveRange* LR = LT->LR;
+    int NumVar = LT->NumVar;
+    bool changed = false;
+    int opd_ID = 0, I_ID = 0;
+    for(int i = 0; i < NumVar; i++){
+        if(LR[i].v == operand){
+            opd_ID = i + 1;
+        }
+        if(LR[i].v == (Value*)I){
+            //LR[i].v->print(errs());
+            //errs() << '\n';
+            //I->print(errs());
+            //errs() << '\n';
+            I_ID = i + 1;
+        }
+    }
+    errs() << opd_ID << " " << I_ID << '\n';
+    if(LR[opd_ID].end < I_ID && opd_ID != 0){
+        LR[opd_ID].end = I_ID;
+        changed = true;
+    }
+    return changed;
+
+
+}
+/*bool setStart(Instruction* I, LiveTable* LT){
+    LiveRange* LR = LT->LR;
+    int NumVar = LT->NumVar;
+    bool changed = false;
+    int I_ID = 0;
+    for(int i = 0; i < NumVar; i++){
+        if(LR[i].v == (Value*)I){
+            I_ID = i;
+        }
+    }
+    if(LR[I_ID].start < I_ID && I_ID != 0){
+        LR[I_ID].start = I_ID;
+        changed = true;
+    }
+    return changed;
+}*/
 std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
     SMDiagnostic Err;
     std::unique_ptr<Module> M;
@@ -266,9 +379,9 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
 
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
-    TreeList* TL = new TreeList;
     for(auto &f:M->getFunctionList()){
         
+        TreeList* TL = new TreeList;
         SymbolTable* ST = new SymbolTable;
         for(auto &arg: f.getArgumentList()){
             if(arg.getArgNo() < 6)
@@ -428,8 +541,79 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                     addSymbolTable(ST, (Value* )&I);
                 }
             }
+
+        int NumInst = 0, NumBB = 0;
+        for(auto I = inst_begin(f); I != inst_end(f); I++){
+            NumInst++;
+        }
+        for(auto &bb : f.getBasicBlockList()){
+            NumBB++;
+        }
+        LiveTable* LiveIn  = new LiveTable [NumBB];//LiveIn[a] get live in of BacisBlock a
+        InstMap* IM = new InstMap [NumInst];
+        int j = 0;
+        for(auto I = inst_begin(f); I != inst_end(f); I++, j++){
+            IM[j].I = &*I;
+            IM[j].N = j + 1;
+        }
+        int i = 0;
+        errs() << "number of instructions : " << NumInst << '\n';
+        errs() << "number of bb: " << NumBB <<'\n';
+        auto& bbList = f.getBasicBlockList();
+        for(auto bb = bbList.begin(); bb != bbList.end(); bb++, i++){
+            LiveIn[i].LR = new LiveRange [NumInst];
+            LiveIn[i].bb = &*bb;
+            LiveIn[i].NumVar = NumInst;
+            j = 0;
+            for(auto I = inst_begin(&f), E = inst_end(&f); I != E; j++, I++){
+                LiveIn[i].LR[j].v = (Value*) &*I;
+                LiveIn[i].LR[j].start = j + 1;
+                LiveIn[i].LR[j].end = 0;
+                if((&*I) == (&* (LiveIn[i].bb->begin()))){
+                    LiveIn[i].bbstart = j;
+                }
+                //errs() << "what tf?\n";
+            }
+          
+ 
+        }
+        bool changed = false;
+        do
+        {
+            errs() << "not fixed!\n";
+            i = NumBB - 1;
+            changed = false;
+            auto& bbList = f.getBasicBlockList();
+            for(auto bb = bbList.rbegin(); bb != bbList.rend() ,i >= 0; i--, bb++){
+                BasicBlock* B = &*bb;
+                for(auto bb_succ = succ_begin(B); bb_succ!= succ_end(B); bb_succ++){
+                    BasicBlock* B_succ = *bb_succ;
+                    changed |= LiveUnion(B, B_succ, LiveIn, NumBB); 
+                }
+                auto& instList = B->getInstList();
+                for(auto I = instList.begin(), E = instList.end(); I != E; I++){
+                    //changed != addRange(NULL, &*I, &(LiveIn[i]));
+                }
+                for(auto I = instList.rbegin() , E = instList.rend(); I != E; I++){
+                    //changed |= setStart(I, &(LiveIn[i]));
+                    //errs() << I->getOpcode() << '\n';
+                    //LiveIn[0].LR[0].v->print(errs());
+                    for(int j = 0; j < I->getNumOperands(); j++){
+                        Value* operand = I->getOperand(j);
+                        changed |= addRange(operand, &*I, &(LiveIn[i]));
+                    }
+                }
+            }
+            errs() << changed <<'\n';
+        }
+        while(changed);
+
+        printTreeList(TL, LiveIn[0].LR, LiveIn[0].NumVar);
     }
-    printTreeList(TL);
+
+
+
+
     //legacy::PassManager PM;
     //PM.add(new PrintModulePass(&llvm::cout));
     //PM.run(*M);
