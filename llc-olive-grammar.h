@@ -58,10 +58,10 @@ enum {
     BRC=802
 };
 
-static char ArgRegs[6][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9"};
-static char CalleeRegs[5][6] = {"%%rbx", "%%r12", "%%r13", "%%r14", "%%r15"};
-static char CallerRegs[2][6] = {"%%r10", "%%r11"};
-static char Regs[13][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9", "%%rbx", "%%r12", "%%r13", "%%r14", "%%r15", "%%r10", "%%r11"}; 
+static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
+static char CallerRegs[2][5] = {"%r10", "%r11"};
+static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
 
 enum {
     RDI = 0,
@@ -88,8 +88,8 @@ struct SymbolTable{
         addrCount = 0;
         next = NULL;
     }
-
 };
+//struct LiveRange
 
 typedef struct tree {
 	int op;
@@ -98,6 +98,7 @@ typedef struct tree {
     SymbolTable* ST;
     llvm::Instruction *I;
     int valtype;
+    //LiveRange* LR;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -133,35 +134,41 @@ enum {
     EQ = 5
 };
 
-typedef struct LoadedMem {
+struct LoadedMem {
     char* UnderFunName;
     int Offset;
     int TargetReg;
-    struct LoadedMem *next;
-} LoadedMem;
+    LoadedMem *next;
 
-static LoadedMem *LoadedMemHead = NULL;
-LoadedMem* findLoadedMem(char* name, int off, int tarreg) {
-    LoadedMem *p = LoadedMemHead;
-    while(p != NULL) {
-        if( p->UnderFunName == name || p->Offset == off || p->TargetReg == tarreg )
-            return p;
-        p = p->next;
+    LoadedMem(){
+        UnderFunName = NULL;
+        Offset = 0;
+        TargetReg = 0;
+        next = NULL;
     }
 
-	LoadedMem *lmem = (LoadedMem*) malloc(sizeof(LoadedMem));
+    LoadedMem( char* name, int off, int tarreg, LoadedMem *n ) {
+        UnderFunName = name;
+        Offset = off;
+        TargetReg = tarreg;
+        next = n;
+    }
+};
 
-    lmem -> UnderFunName = name;
-    lmem -> Offset = off;
-    lmem -> TargetReg = tarreg;
-    
-    if( LoadedMemHead != NULL )
-        lmem -> next = LoadedMemHead -> next;
-    else 
-        lmem -> next = NULL;
+static LoadedMem *LoadedMemHead = new LoadedMem;
+bool findLoadedMem(char* name, int off) {
+    LoadedMem *p = LoadedMemHead->next;
+    while(p != NULL) {
+        if( p->UnderFunName == name || p->Offset == off )
+            return true;
+        p = p->next;
+    }
+    return false;
+}
 
-    LoadedMemHead = lmem;
-    return lmem;
+void insertLoadedMem(char* name, int off, int tarreg) {
+    LoadedMem *lmem = new LoadedMem(name, off, tarreg, LoadedMemHead->next);
+    LoadedMemHead->next = lmem;   
 }
 
 /*static char* burm_string = "FOO";*/
@@ -190,7 +197,6 @@ int OP_LABEL(NODEPTR p) {
         case BRC:return 13;
 	    default: return p->op;
 	}
-    
 }
 
 static void burm_trace(NODEPTR, int, COST);

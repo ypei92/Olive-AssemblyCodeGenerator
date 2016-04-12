@@ -234,38 +234,38 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  206,
-  /* 1 */  212,
-  /* 2 */  220,
-  /* 3 */  239,
-  /* 4 */  258,
-  /* 5 */  278,
-  /* 6 */  297,
-  /* 7 */  316,
-  /* 8 */  329,
-  /* 9 */  342,
-  /* 10 */  355,
-  /* 11 */  372,
-  /* 12 */  385,
-  /* 13 */  397,
-  /* 14 */  409,
-  /* 15 */  421,
-  /* 16 */  432,
-  /* 17 */  443,
-  /* 18 */  454,
-  /* 19 */  465,
-  /* 20 */  471,
-  /* 21 */  483,
-  /* 22 */  496,
-  /* 23 */  509,
-  /* 24 */  521,
-  /* 25 */  534,
-  /* 26 */  540,
-  /* 27 */  555,
-  /* 28 */  571,
-  /* 29 */  583,
-  /* 30 */  595,
-  /* 31 */  601,
+  /* 0 */  212,
+  /* 1 */  218,
+  /* 2 */  226,
+  /* 3 */  245,
+  /* 4 */  264,
+  /* 5 */  284,
+  /* 6 */  303,
+  /* 7 */  322,
+  /* 8 */  335,
+  /* 9 */  348,
+  /* 10 */  361,
+  /* 11 */  377,
+  /* 12 */  390,
+  /* 13 */  402,
+  /* 14 */  414,
+  /* 15 */  426,
+  /* 16 */  437,
+  /* 17 */  453,
+  /* 18 */  464,
+  /* 19 */  475,
+  /* 20 */  481,
+  /* 21 */  493,
+  /* 22 */  506,
+  /* 23 */  519,
+  /* 24 */  531,
+  /* 25 */  544,
+  /* 26 */  550,
+  /* 27 */  565,
+  /* 28 */  581,
+  /* 29 */  593,
+  /* 30 */  605,
+  /* 31 */  611,
 };
 
 #pragma GCC diagnostic push
@@ -709,7 +709,7 @@ int indent)
 
         llvm::Function* CurFun = _s->node->I->getFunction();
         printf("    jmp LABEL\n");
-        printf("%s_LABEL:\n", CurFun->getName());
+        printf("%s_LABEL:\n", CurFun->getName().data());
     
 }
   break;
@@ -731,7 +731,7 @@ int indent)
             default:   printf("    nojump LABEL\n");break;
         }
         llvm::Function* CurFun = _s->node->I->getFunction();
-        printf("%s_LABEL:\n", CurFun->getName());
+        printf("%s_LABEL:\n", CurFun->getName().data());
     
 }
   break;
@@ -753,7 +753,7 @@ int indent)
             default:   printf("    nojump LABEL\n");break;
         }
         llvm::Function* CurFun = _s->node->I->getFunction();
-        printf("%s_LABEL:\n", CurFun->getName());
+        printf("%s_LABEL:\n", CurFun->getName().data());
     
 }
   break;
@@ -775,7 +775,7 @@ int indent)
             default:   printf("    nojump LABEL\n");break;
         }
         llvm::Function* CurFun = _s->node->I->getFunction();
-        printf("%s_LABEL:\n", CurFun->getName());
+        printf("%s_LABEL:\n", CurFun->getName().data());
     
 }
   break;
@@ -789,7 +789,7 @@ int indent)
         if( CurFun != PreFun ) {
             PreFun = CurFun;
             RegCounter = 1;
-            printf("_Your_%s:\n",CurFun->getName());
+            printf("_Your_%s:\n",CurFun->getName().data());
             printf("    pushq %%rbp\n");
             printf("    movq %%rsp, %%rbp\n");
             if(_s->node->ST!=NULL) {
@@ -811,7 +811,7 @@ int indent)
         if( CurFun != PreFun ) {
             PreFun = CurFun;
             RegCounter = 1;
-            printf("_Your_%s:\n",CurFun->getName());
+            printf("_Your_%s:\n",CurFun->getName().data());
             printf("    pushq %%rbp\n");
             printf("    movq %%rsp, %%rbp\n");
             if(_s->node->ST!=NULL) {
@@ -895,9 +895,8 @@ int indent)
 
         unsigned int NumOperands = _s->node->I->getNumOperands();
         llvm::Value* FunValue = _s->node->I->getOperand(NumOperands - 1);
-        //char* FunName = FunValue -> getName();
 
-        printf("    call %s\n", FunValue -> getName());
+        printf("    call %s\n", FunValue -> getName().data());
         printf("    movq %%rax, %%%d\n", RegCounter );
 
         _s->node->val = RegCounter++;
@@ -985,7 +984,12 @@ int indent)
 
 
         mem_action(_s->kids[0],0);
-        //LoadedMem* findLoadedMem(char* name, int off, int tarreg)
+
+        //Function* CurFun = _s->node->I->getFunction();
+        //char* name = (char*)CurFun->getName().data;
+        //if(findLoadedMem(name, _s->kids[0]->node->val))
+        //insertLoadedMem(name, _s->kids[0]->node->val, RegCounter);
+
         printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->node->val, RegCounter);
 
         _s->node->val = RegCounter++;
