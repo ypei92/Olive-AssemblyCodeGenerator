@@ -3,15 +3,13 @@
 
 int main()
 {
-    int a = 1;
-    int b;
+    long long a = 1;
+    long long b;
     b = 2;
-    int c = 0;
+    long long c = 0;
 
-    if( a + b > 1)
+    if( a > b )
         c = a*b;
     else
-        c = b/a;
-
-    printf("%d %d %d\n", a, b, c);
+        c = a+b;
 }

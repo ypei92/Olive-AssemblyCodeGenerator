@@ -3,15 +3,15 @@
 
 int main()
 {
-    int a = 1;
-    int b;
-    int *p = &a;
-    int *q = &b;
+    long long a = 1;
+    long long b;
+    long long *p = &a;
+    long long *q = &b;
     b = 2;
 
-    int c = a + *p;
-    int d = *q + b;
-    int e = (*q)*(*p);
+    long long g = a;
 
-    printf("%d %d %d\n", c, d, e);
+    long long c = a + *p;
+    long long d = *q + b;
+    long long e = (*q)*(*p);
 }
