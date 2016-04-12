@@ -237,39 +237,39 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  428,
-  /* 1 */  435,
-  /* 2 */  458,
-  /* 3 */  481,
-  /* 4 */  489,
-  /* 5 */  513,
-  /* 6 */  537,
-  /* 7 */  561,
-  /* 8 */  574,
-  /* 9 */  587,
-  /* 10 */  600,
-  /* 11 */  617,
-  /* 12 */  630,
-  /* 13 */  642,
-  /* 14 */  654,
-  /* 15 */  666,
-  /* 16 */  674,
-  /* 17 */  687,
-  /* 18 */  704,
-  /* 19 */  718,
-  /* 20 */  732,
-  /* 21 */  738,
-  /* 22 */  750,
-  /* 23 */  763,
-  /* 24 */  776,
-  /* 25 */  788,
-  /* 26 */  801,
-  /* 27 */  807,
-  /* 28 */  822,
-  /* 29 */  838,
-  /* 30 */  850,
-  /* 31 */  862,
-  /* 32 */  868,
+  /* 0 */  442,
+  /* 1 */  449,
+  /* 2 */  472,
+  /* 3 */  495,
+  /* 4 */  503,
+  /* 5 */  527,
+  /* 6 */  551,
+  /* 7 */  575,
+  /* 8 */  588,
+  /* 9 */  601,
+  /* 10 */  614,
+  /* 11 */  631,
+  /* 12 */  644,
+  /* 13 */  656,
+  /* 14 */  668,
+  /* 15 */  680,
+  /* 16 */  688,
+  /* 17 */  701,
+  /* 18 */  719,
+  /* 19 */  734,
+  /* 20 */  748,
+  /* 21 */  754,
+  /* 22 */  766,
+  /* 23 */  779,
+  /* 24 */  792,
+  /* 25 */  804,
+  /* 26 */  817,
+  /* 27 */  823,
+  /* 28 */  838,
+  /* 29 */  854,
+  /* 30 */  866,
+  /* 31 */  878,
+  /* 32 */  884,
 };
 
 #pragma GCC diagnostic push
@@ -930,7 +930,7 @@ int indent)
 
         unsigned int NumOperands = _s->node->I->getNumOperands();
         llvm::Value* FunValue = _s->node->I->getOperand(NumOperands - 1);
-        int tar = RegAllocation(_s->node->LiveRange->start, _s->node->LiveRange->end);
+        int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
 
         printf("    call %s\n", FunValue -> getName().data());
         printf("    movq %%rax, %s\n", Regs[tar]);
@@ -1019,7 +1019,7 @@ int indent)
         reg_action(_s->kids[0],0);
 
         // printf("    movq %%%d, %%%d\n", _s->kids[0]->node->val, RegCounter);
-        int tar = RegAllocation(_s->node->LiveRange->start, _s->node->LiveRange->end);
+        int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
 
         _s->node->val = tar;
@@ -1038,8 +1038,9 @@ int indent)
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, _s->kids[0]->node->val))
         //insertLoadedMem(name, _s->kids[0]->node->val, RegCounter);
-
-        int tar = RegAllocation(_s->node->LiveRange->start, _s->node->LiveRange->end);
+        printf("failded here\n");
+        printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
+        int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
 
         _s->node->val = tar;
@@ -1055,8 +1056,9 @@ int indent)
         mem_action(_s->kids[0]->kids[0],0);
 
         //printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, RegCounter);
-
-        int tar = RegAllocation(_s->node->LiveRange->start, _s->node->LiveRange->end);
+        printf("failded here2\n");
+        printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
+        int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[tar]);
 
         _s->node->val = tar;
@@ -1073,7 +1075,7 @@ int indent)
 
         //printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->kids[0]->node->val, RegCounter);
 
-        int tar = RegAllocation(_s->node->LiveRange->start, _s->node->LiveRange->end);
+        int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->kids[0]->node->val, Regs[tar]);
 
         _s->node->val = tar;
@@ -1948,11 +1950,10 @@ static Tree tree(int op, Tree l, Tree r, SymbolTable* ST) {
 	t->op = op;
 	t->kids[0] = l; t->kids[1] = r;
 	t->val = 0;
-	t->I = NULL;
-    t->x.state = 0;
     t->valtype = nontypE;
 	t->x.state = 0;
     t->I = 0;
     t->ST = ST;
+    t->LR = NULL;
 	return t;
 }

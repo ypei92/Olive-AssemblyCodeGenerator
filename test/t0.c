@@ -12,5 +12,5 @@ int main()
     int d = c+a;
     int e = c+b;
 
-    printf("%d %d %d\n", c, d, e);
+    //printf("%d %d %d\n", c, d, e);
 }

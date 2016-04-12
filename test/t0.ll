@@ -2,8 +2,6 @@
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-@.str = private unnamed_addr constant [10 x i8] c"%d %d %d\0A\00", align 1
-
 ; Function Attrs: nounwind uwtable
 define i32 @main() #0 {
 entry:
@@ -26,18 +24,11 @@ entry:
   %5 = load i32, i32* %b, align 4
   %add2 = add nsw i32 %4, %5
   store i32 %add2, i32* %e, align 4
-  %6 = load i32, i32* %c, align 4
-  %7 = load i32, i32* %d, align 4
-  %8 = load i32, i32* %e, align 4
-  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str, i32 0, i32 0), i32 %6, i32 %7, i32 %8)
   ret i32 0
 }
 
-declare i32 @printf(i8*, ...) #1
-
 attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.ident = !{!0}
 
-!0 = !{!"clang version 3.9.0 "}
+!0 = !{!"clang version 3.9.0 (http://llvm.org/git/clang.git e88720a6287e5fa399e833ed5ddf4f0b475c37bd) (http://llvm.org/git/llvm.git 9867695c88ba0998618aa879e86315800c49c7c8)"}
