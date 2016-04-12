@@ -10,14 +10,19 @@ InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
-std::unique_ptr<Module> makeLLVMModule(char *inputfile, LLVMContext &Context);
+static cl::opt<unsigned int>
+NumRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(16));
+
+std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string> &InputFilename, LLVMContext &Context);
 
 
 int main( int argc, char **argv) {
-
+    errs() << InputFilename << "\n";
     LLVMContext &Context = getGlobalContext();
-    std::unique_ptr<Module> M = makeLLVMModule(argv[1], Context);
-
+    cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
+    std::unique_ptr<Module> M = makeLLVMModule(InputFilename, Context);
+    
+    errs() << "NumRegs: "<< NumRegs << "\n";
 //    verifyModule(*Mod, PrintMessageAction);
 
     return 0;
@@ -49,13 +54,15 @@ struct LiveRange{
 struct LiveTable{
     BasicBlock * bb;
     LiveRange* LR;
-    int NumVar;
+    LiveRange* argLR;
+    int NumVars;
     int bbstart;
     int bbend;
     LiveTable(){
+        argLR = NULL;
         bb = NULL;
         LR = NULL;
-        NumVar = 0;
+        NumVars = 0;
         bbstart = 0;
         bbend = 0;
     }
@@ -255,7 +262,8 @@ void printTree(Tree t, int depth){
 
 void printLR(LiveRange* LR, int n){
     for(int i = 0; i < n; i++){
-        LR[i].v->print(errs());
+        if(LR[i].v)
+            LR[i].v->print(errs());
         errs() << "\n";
         errs() << "var "<< i << ": "<< LR[i].start << " "<< LR[i].end<< '\n';
     }
@@ -302,12 +310,12 @@ bool LiveUnion(BasicBlock* bb, BasicBlock* succ, LiveTable* LT, int NumBB){
             succ_ID = i;
         }
     }    
-    for(int i = 0; i < LT[0].NumVar; i++){
+    for(int i = 0; i < LT[0].NumVars; i++){
         if(succ_LR[i].end > bb_LR[i].end){
             bb_LR[i].end = succ_LR[i].end;
             changed = true;
         }
-        if(succ_LR[i].start < bb_LR[i].start){
+        if(succ_LR[i].start < bb_LR[i].start && succ_LR[i].start != -1){
             bb_LR[i].start = succ_LR[i].start;
             changed = true;
         }
@@ -318,13 +326,13 @@ bool LiveUnion(BasicBlock* bb, BasicBlock* succ, LiveTable* LT, int NumBB){
 }
 
 bool addRangeIfLive(Value *Operand, LiveTable* LT, InstMap* IM){
-    int NumVar = LT->NumVar;
+    int NumVars = LT->NumVars;
     LiveRange* LR = LT->LR;
     int bbend = LT->bbend;
     
     int bbstart = LT->bbstart;
     bool changed = false;
-    for(int i = 0; i < NumVar; i++){
+    for(int i = 0; i < NumVars; i++){
         if(LR[i].live){
             if(LR[i].end < bbend){
                 changed = true;
@@ -338,12 +346,12 @@ bool addRangeIfLive(Value *Operand, LiveTable* LT, InstMap* IM){
     }
     return changed;
 }
-bool addRange(Value* operand, Instruction * I, LiveTable* LT){
+bool addRange(Value* operand, Instruction * I, LiveTable* LT, SymbolTable* ST){
     LiveRange* LR = LT->LR;
-    int NumVar = LT->NumVar;
+    int NumVars = LT->NumVars;
     bool changed = false;
-    int opd_ID = 0, I_ID = 0;
-    for(int i = 0; i < NumVar; i++){
+    int opd_ID = -1, I_ID = -1;
+    for(int i = 0; i < NumVars; i++){
         if(LR[i].v == operand){
             opd_ID = i;
         }
@@ -355,34 +363,52 @@ bool addRange(Value* operand, Instruction * I, LiveTable* LT){
             I_ID = i;
         }
     }
-    errs() << opd_ID << " " << I_ID << '\n';
-    if(LR[opd_ID].end < I_ID){
+    //errs() << opd_ID << " " << I_ID << '\n';
+    Tree temp = tree(0, 0, 0, ST);
+    if(opd_ID == -1 && findSymbolTable(ST, operand, temp)){
+        int i = 0;
+        for(auto& arg : I->getFunction()->getArgumentList()){
+            Value* v = (Value *) &arg;
+            if(operand == v){
+                opd_ID = i;
+                LR = LT->argLR;
+                break;
+            }
+            i++;
+        }
+        if(opd_ID != -1 && LR[opd_ID].end < I_ID){
+            LR[opd_ID].end = I_ID;
+            changed = true;
+        }
+        errs() << " found symboltable: " << opd_ID << " " << I_ID << "\n";
+    }
+    else if( LR[opd_ID].end < I_ID){
         LR[opd_ID].end = I_ID;
-        LR[opd_ID].live = true;
+        LR[opd_ID].live = true; 
         changed = true;
     }
+        free(temp);
     return changed;
-
-
 }
 bool setStart(Instruction* I, LiveTable* LT){
     LiveRange* LR = LT->LR;
-    int NumVar = LT->NumVar;
+    int NumVars = LT->NumVars;
     bool changed = false;
-    int I_ID = 0;
-    for(int i = 0; i < NumVar; i++){
+    int I_ID = -1;
+    for(int i = 0; i < NumVars; i++){
         if(LR[i].v == (Value*)I){
             I_ID = i;
         }
     }
-    if(LR[I_ID].start < I_ID){
+    if(LR[I_ID].start < I_ID ){
+        //errs() << "set start: " << I_ID << '\n';
         LR[I_ID].start = I_ID;
         LR[I_ID].live = false;
         changed = true;
     }
     return changed;
 }
-std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
+std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMContext &Context) {
     SMDiagnostic Err;
     std::unique_ptr<Module> M;
 
@@ -422,22 +448,30 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                     errs() << "  ";
                     operand->print(errs());
                     errs()<<'\n';
-                }  
-                if(I.getOpcode() != 29) {// #define alloca 29
-                    Tree t = tree(I.getOpcode(), 0, 0, ST);
-                    t->I = &I;
-                    addTree(TL ,t);
-                    if(I.isBinaryOp() && I.hasName()){
-                        Tree t_mov = tree(30, 0, 0, ST); //#define LOAD 30
-                        t->kids[1] = t_mov;
-                        bool temp1 = mergeTreeListLeft(TL, I.getOperand(0), t);
-                        bool temp2 = mergeTreeListLeft(TL, I.getOperand(1), t_mov);
-                        if(!temp1){ 
-                            errs()<<"merge tree error!\n";
-                            exit(1);//addTree(TL, t);
-                        }
+                } 
+                Tree t = tree(I.getOpcode(), 0, 0, ST);
+                t->I = &I;
+                addTree(TL ,t);
+                switch(I.getOpcode()){
+                    case 29: {// #define alloca 29
+                        addSymbolTable(ST, (Value* )&I);
+                        removeTree(TL, t);       
+                        break;
                     }
-                    else if(I.getOpcode() == 31 ){//#define store 31
+                    case 11: {//define add 11
+                        if(I.isBinaryOp() && I.hasName()){
+                            Tree t_mov = tree(30, 0, 0, ST); //#define LOAD 30
+                            t->kids[1] = t_mov;
+                            bool temp1 = mergeTreeListLeft(TL, I.getOperand(0), t);
+                            bool temp2 = mergeTreeListLeft(TL, I.getOperand(1), t_mov);
+                            if(!temp1){ 
+                                errs()<<"merge tree error!\n";
+                                exit(1);//addTree(TL, t);
+                            }
+                        }
+                        break;
+                    }
+                    case 31: {//#define store 31
                         Tree offset_r = tree(999, 0, 0, ST);//#define OFFSET 999
                         t->kids[1] = offset_r;
                         if(t->I->getOperand(0)->getType()->isIntegerTy()){
@@ -477,8 +511,9 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             errs() << "find symboltable error!\n";
                             exit(1);
                         }
+                        break;
                     }
-                    else if(I.getOpcode() == 30){//#define load 30
+                    case 30: {//#define load 30
                         Tree offset = tree(999, 0, 0, ST);// #define OFFSET 999
                         t->kids[0] = offset;
                         if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
@@ -489,9 +524,9 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             errs() << "merge tree list & find symboltable error!\n";
                             exit(1);
                         }
-
+                        break;
                     }
-                    else if(I.getOpcode() == 54){ // #define call 54
+                    case 54: { // #define call 54
                         Tree tmp = t;
                         if(I.getNumOperands() > 1){
                             t->kids[0] = tree(997, 0, 0, ST);// #define ARGLIST 997
@@ -508,10 +543,9 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             tmp = t_arglist;
                         }
                     
-                    
+                        break;
                     }
-                    else if(I.getOpcode() == 1){
-
+                    case 1: { //#define ret 1
                         if(t->I->getOperand(0)->getType()->isIntegerTy()){
                             errs() << " find new constant\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
@@ -544,16 +578,104 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                                 errs() << "find symboltable &&! merge tree left error\n";
                         }
 
+                        break;
                     }
+                    case 2: {//#define br 2
+                        if(I.getNumOperands() == 3){
+                            Tree offset = tree(999, 0, 0, ST);
+                            t->kids[0] = offset;
+                            t->op = 2;
+                            if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
+                                errs() << "find symboltable &&! merge tree left error\n";
+                        }
+                        else if(I.getNumOperands() == 1){
+                            t->op = 800;
+                        }
+                        else errs() << "unknown branck num of operands\n";
+                                
+                       
+                        break;
+                    }
+                    case 51: {//#define cmp 51
+                        if(t->I->getOperand(0)->getType()->isIntegerTy()){
+                            errs() << " find new constant\n";
+                            errs() << *(t->I->getOperand(0)->getType()) << '\n';
+                            ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
+                            Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996
+                            t->kids[0] = imm_l;
+                            errs() << "store left\n";
+                            if(CI) {
+                                errs() << "CI exists!\n";
+                                errs() << CI->getValue() << '\n';
+                                imm_l->val = CI->getSExtValue();
+                            }
+                            else {
+                                if(TL->tptr == NULL){
+                                    if(!findSymbolTable(ST, I.getOperand(0), imm_l))
+                                        errs() << "unable to recognize left kids of store!\n";
+                                }
+                                else if(!mergeTreeListLeft(TL, I.getOperand(0), t)){
+                                    if(!findSymbolTable(ST, I.getOperand(0), imm_l))
+                                        errs() << " unable to recognize left kids of store!\n";
+                                }
+                            }
 
-                    else if(!mergeTreeList(TL, t)){
-                        errs() << "independent tree!\n";
-                        //addTree(TL, t);
+                        }
+                        else if(I.getOperand(0)->getType()->isPointerTy()){
+                            errs() << "store from a pointer!\n";
+                            Tree offset = tree(999, 0, 0, ST);
+                            t->kids[0] = offset;
+                            if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
+                                errs() << "find symboltable &&! merge tree left error\n";
+                        }
+                        else errs() << "unknown cmp left opd\n";
+
+                       if(t->I->getOperand(1)->getType()->isIntegerTy()){
+                            errs() << " find new constant\n";
+                            errs() << *(t->I->getOperand(1)->getType()) << '\n';
+                            ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(1));
+                            Tree imm_r = tree(996, 0, 0, ST);//#define IMM 996
+                            t->kids[1] = imm_r;
+                            errs() << "store right\n";
+                            if(CI) {
+                                errs() << "CI exists!\n";
+                                errs() << CI->getValue() << '\n';
+                                imm_r->val = CI->getSExtValue();
+                            }
+                            else {
+                                if(TL->tptr == NULL){
+                                    if(!findSymbolTable(ST, I.getOperand(1), imm_r))
+                                        errs() << "unable to recognize right kids of store!\n";
+                                }
+                                else if(!mergeTreeListRight(TL, I.getOperand(1), t)){
+                                    if(!findSymbolTable(ST, I.getOperand(1), imm_r))
+                                        errs() << " unable to recognize right kids of store!\n";
+                                }
+                            }
+
+                        }
+                        else if(I.getOperand(1)->getType()->isPointerTy()){
+                            errs() << "store from a pointer!\n";
+                            Tree offset = tree(999, 0, 0, ST);
+                            t->kids[1] = offset;
+                            if(!(mergeTreeListRight(TL, I.getOperand(1), t) || findSymbolTable(ST, I.getOperand(1), offset)))
+                                errs() << "find symboltable &&! merge tree Right error\n";
+                        }
+                        else errs() << "unknown cmp right opd\n";
+                        CmpInst* cmpI = (CmpInst* ) (t->I);
+                        ICmpInst::Predicate predicate = cmpI->getPredicate();
+                        switch(predicate){
+                            case ICmpInst::ICMP_SGT: t->val = 0; break;
+                            case ICmpInst::ICMP_SGE: t->val = 1; break;
+                            case ICmpInst::ICMP_SLT: t->val = 2; break;
+                            case ICmpInst::ICMP_SLE: t->val = 3; break;
+                            case ICmpInst::ICMP_NE: t->val = 4; break;
+                            case ICmpInst::ICMP_EQ: t->val = 5; break;
+                            default: errs() << "unknown predicate of cmp\n"; break;
+                        }
+                        break; 
                     }
-                    else errs() << "unknown operation\n";
-                }
-                else{
-                    addSymbolTable(ST, (Value* )&I);
+                    default: errs() << "unknown operation\n";break;
                 }
             }
 
@@ -576,9 +698,11 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
         errs() << "number of bb: " << NumBB <<'\n';
         auto& bbList = f.getBasicBlockList();
         for(auto bb = bbList.begin(); bb != bbList.end(); bb++, i++){
-            LiveIn[i].LR = new LiveRange [NumInst];
+            errs() << "number of var in function: " << NumInst + f.getArgumentList().size() << "\n";
+            LiveIn[i].NumVars = NumInst + f.getArgumentList().size();
+            LiveIn[i].LR = new LiveRange [LiveIn[i].NumVars];
             LiveIn[i].bb = &*bb;
-            LiveIn[i].NumVar = NumInst;
+            LiveIn[i].argLR = LiveIn[i].LR + NumInst;
             j = 0;
             for(auto I = inst_begin(&f), E = inst_end(&f); I != E; j++, I++){
                 LiveIn[i].LR[j].v = (Value*) &*I;
@@ -599,36 +723,58 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
         bool changed = false;
         do
         {
-            errs() << "not fixed!\n";
+            errs() << "not fixed!" << NumBB <<" \n";
             i = NumBB - 1;
             changed = false;
             auto& bbList = f.getBasicBlockList();
             for(auto bb = bbList.rbegin(); bb != bbList.rend() ,i >= 0; i--, bb++){
+                //errs() << "basic block: " << NumBB - 1 - i << "\n";
+                
                 BasicBlock* B = &*bb;
                 for(auto bb_succ = succ_begin(B); bb_succ!= succ_end(B); bb_succ++){
                     BasicBlock* B_succ = *bb_succ;
                     changed |= LiveUnion(B, B_succ, LiveIn, NumBB); 
                 }
                 auto& instList = B->getInstList();
+                //errs() << "changed before before: " << changed << '\n';
                 for(auto I = instList.begin(), E = instList.end(); I != E; I++){
                     changed |= addRangeIfLive(&*I, &(LiveIn[i]), IM);
                 }
+                //errs() << "changed before:" << changed << '\n';
                 for(auto I = instList.rbegin() , E = instList.rend(); I != E; I++){
                     changed |= setStart(&*I, &(LiveIn[i]));
                     //errs() << I->getOpcode() << '\n';
                     //LiveIn[0].LR[0].v->print(errs());
+                    //errs() << "changed mid: " << changed << '\n';
                     for(int j = 0; j < I->getNumOperands(); j++){
                         Value* operand = I->getOperand(j);
-                        changed |= addRange(operand, &*I, &(LiveIn[i]));
+                        changed |= addRange(operand, &*I, &(LiveIn[i]), ST);
                     }
+                    //errs() << "changed after: "<< changed <<'\n';
                 }
             }
             errs() << changed <<'\n';
-            printLR(LiveIn[0].LR, LiveIn[0].NumVar);
+            printLR(LiveIn[0].LR, LiveIn[0].NumVars);
         }
         while(changed);
+        i = 0;
+        j = 0;
+        for(auto bb = bbList.begin(); bb != bbList.end(), i <= NumBB; i++, bb++){
+            BasicBlock* B = &*bb;
+            auto& instList = B->getInstList();
+            for(auto I = instList.begin(); I != instList.end(); I++){
+                if(I->getParent() == B){
+                    LiveIn[0].LR[j] = LiveIn[i].LR[j];
+                    //errs() << "equals!" << j << "\n";
+                    j++;
+                }
+            }
+        }
+        
 
-        printTreeList(TL, LiveIn[0].LR, LiveIn[0].NumVar);
+        printTreeList(TL, LiveIn[0].LR, LiveIn[0].NumVars);
+        delete TL;
+        delete ST;
     }
 
 
