@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string>
 /*
-   FILE: sample4.brg
+   FILE: llc-olive-grammar.brg
   
    Copyright (c) 1997 Princeton University
 
@@ -55,31 +55,19 @@ enum {
     ARG=998,
     OFFSET=999,
     ARGEND=995,
-    CMP=800,
-    BR=801,
-    BRC=802
+    CMP=51,
+    BR=800,
+    BRC=2
 };
 
-static char ArgRegs[6][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9"};
-static char CalleeRegs[5][6] = {"%%rbx", "%%r12", "%%r13", "%%r14", "%%r15"};
-static char CallerRegs[2][6] = {"%%r10", "%%r11"};
-static char Regs[13][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9", "%%rbx", "%%r12", "%%r13", "%%r14", "%%r15", "%%r10", "%%r11"}; 
+static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
+static char CallerRegs[2][5] = {"%r10", "%r11"};
+static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
+static bool IfRegAvailable[13] = {0};
+extern int NumofRegs;
+static int LocalVarStack = 0;
 
-enum {
-    RDI = 0,
-    RSI = 1,
-    RDX = 2,
-    RCX = 3,
-    R8  = 4,
-    R9  = 5,
-    RBX = 6,
-    R12 = 7,
-    R13 = 8,
-    R14 = 9,
-    R15 = 10,
-    R10 = 11,
-    R11 = 12
-};
 struct SymbolTable{
     Value* v;
     int addrCount;
@@ -90,8 +78,8 @@ struct SymbolTable{
         addrCount = 0;
         next = NULL;
     }
-
 };
+//struct LiveRange
 
 typedef struct tree {
 	int op;
@@ -100,6 +88,7 @@ typedef struct tree {
     SymbolTable* ST;
     llvm::Instruction *I;
     int valtype;
+    //LiveRange* LR;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -135,35 +124,269 @@ enum {
     EQ = 5
 };
 
-typedef struct LoadedMem {
+struct LoadedMem {
     char* UnderFunName;
     int Offset;
     int TargetReg;
-    struct LoadedMem *next;
-} LoadedMem;
+    LoadedMem *next;
 
-static LoadedMem *LoadedMemHead = NULL;
-LoadedMem* findLoadedMem(char* name, int off, int tarreg) {
-    LoadedMem *p = LoadedMemHead;
+    LoadedMem(){
+        UnderFunName = NULL;
+        Offset = 0;
+        TargetReg = 0;
+        next = NULL;
+    }
+
+    LoadedMem( char* name, int off, int tarreg, LoadedMem *n ) {
+        UnderFunName = name;
+        Offset = off;
+        TargetReg = tarreg;
+        next = n;
+    }
+};
+
+static LoadedMem *LoadedMemHead = new LoadedMem;
+bool findLoadedMem(char* name, int off) {
+    LoadedMem *p = LoadedMemHead->next;
     while(p != NULL) {
-        if( p->UnderFunName == name || p->Offset == off || p->TargetReg == tarreg )
-            return p;
+        if( p->UnderFunName == name || p->Offset == off )
+            return true;
+        p = p->next;
+    }
+    return false;
+}
+
+void insertLoadedMem(char* name, int off, int tarreg) {
+    LoadedMem *lmem = new LoadedMem(name, off, tarreg, LoadedMemHead->next);
+    LoadedMemHead->next = lmem;   
+}
+
+struct ActiveNode {
+    int Start;
+    int End;
+    int OccupiedReg;
+    ActiveNode* next;
+    
+    ActiveNode() {
+        Start = 0;
+        End = 0;
+        OccupiedReg = -1;
+        next = NULL;
+    }
+
+    ActiveNode( int s, int e, int o, ActiveNode* p = NULL) {
+        Start = s;
+        End = e;
+        OccupiedReg = o;
+        next = p;
+    }
+};
+
+static ActiveNode *ActiveNodeHead = new ActiveNode;
+void expireOldIntervals(int cur_point) {
+    ActiveNode *p = ActiveNodeHead->next;
+    while(p != NULL){
+        if( p->End > cur_point ) 
+            break;
+        p = p->next;
+    }
+    ActiveNode *q = ActiveNodeHead->next;
+    ActiveNodeHead->next = p;
+    while( q != p ) {
+        IfRegAvailable[q->OccupiedReg] = 1;        
+        ActiveNode *tmp = q->next;
+        delete q;
+        q = tmp;
+    }
+}
+
+int lengthActiveNodeList() {
+    ActiveNode *p = ActiveNodeHead->next;
+    int counter = 0;
+    while(p!=NULL) {
+        p = p->next;
+        counter ++;
+    }
+    return counter;
+}
+
+void insertActiveNode(int start, int end, int target) {
+    if(IfRegAvailable[target] == 0) {
+        printf("already used, abort\n");
+        return;
+    }
+    IfRegAvailable[target] = 0;
+    ActiveNode *p = ActiveNodeHead->next;
+    ActiveNode *q = ActiveNodeHead;
+    while(p != NULL) {
+        if( p->End >= end )
+            break;
+        q = p;
+        p = p->next;
+    }
+    q -> next = new ActiveNode(start, end, target, p);
+}
+
+void clearActiveNodeList() {
+    ActiveNode *p = ActiveNodeHead->next;
+    while(p != NULL) {
+        ActiveNodeHead->next = p -> next;
+        delete p;
+        p = ActiveNodeHead->next;
+    }
+    for( int i = 0 ; i < NumofRegs; i++)
+        IfRegAvailable[i] = 1;
+}
+
+void printActiveNodeList() {
+    ActiveNode *p = ActiveNodeHead->next;
+    while(p != NULL) {
+        printf("Start = %d, End = %d, TargetReg = %d\n", p->Start, p->End, p->OccupiedReg);
+        p = p->next;
+    }
+}
+
+ActiveNode* findEndlast(){
+    ActiveNode *p = ActiveNodeHead->next;
+    while(p != NULL) {
+        p = p -> next;
+    }
+    return p;
+}
+
+
+struct SpilledNode {
+    int Start;
+    int End;
+    int Offset;
+    SpilledNode *next;
+
+    SpilledNode() {
+        Start = 0;
+        End = 0;
+        Offset = -1;
+        next = NULL;
+    }
+
+    SpilledNode( int s, int e, int off, SpilledNode* p = NULL) {
+        Start = s;
+        End = e;
+        Offset = off;
+        next = p;
+    }
+};
+
+static SpilledNode *SpilledNodeHead = new SpilledNode;
+
+int insertSpilledNode( int start, int end) {
+    SpilledNode *p = SpilledNodeHead->next;
+    SpilledNode *q = SpilledNodeHead;
+    while(p != NULL) {
+        if( p->End >= end )
+            break;
+        q = p;
+        p = p->next;
+    }
+    int offset = LocalVarStack+8*(++SpilledNodeHead->Start);
+    q -> next = new SpilledNode(start, end, offset, p);
+    return offset; 
+}
+
+int lengthSpilledNodeList() {
+    SpilledNode *p = SpilledNodeHead->next;
+    int counter = 0;
+    while( p!= NULL) {
+        p = p->next;
+        counter++;
+    }
+    return counter;
+}
+
+bool removeSpilledNode(int end) {
+    SpilledNode *p = SpilledNodeHead->next;
+    SpilledNode *q = SpilledNodeHead;
+    while( p!=NULL ) {
+        if( p->End == end )
+            break;
+        q = p;
         p = p->next;
     }
 
-	LoadedMem *lmem = (LoadedMem*) malloc(sizeof(LoadedMem));
+    if(p == NULL) {
+        printf("nomatch\n");
+        return false;
+    }
+    else {
+        q->next = p->next;
+        delete p;
+        return true;
+    }
+}
 
-    lmem -> UnderFunName = name;
-    lmem -> Offset = off;
-    lmem -> TargetReg = tarreg;
+void clearSpilledNodeList() {
+    SpilledNode *p = SpilledNodeHead->next;
+    while(p != NULL) {
+        SpilledNodeHead->next = p -> next;
+        delete p;
+        p = SpilledNodeHead->next;
+    }
+    for( int i = 0 ; i < NumofRegs; i++)
+        IfRegAvailable[i] = 1;
+
+    SpilledNodeHead->Start = 0;
+}
+
+/*
+int RegAllocation(int start, int end) {
+    int i = 0;
+    ActiveNode *p;
+
+    expireOldIntervals(start);
+    int NumNodes = lengthActiveNodeList();
+    int NumSpilled=lengthSpilledNodeList();
     
-    if( LoadedMemHead != NULL )
-        lmem -> next = LoadedMemHead -> next;
-    else 
-        lmem -> next = NULL;
+    int NumSlots = NumofRegs - NumNodes;
+    int NumUnassigned = NumSpilled + 1; 
+    int NumofAssign = (NumSlots > NumUnassigned)?NumUnassigned:NumSlots;
 
-    LoadedMemHead = lmem;
-    return lmem;
+    int addr = -1;
+    if( NumNodes == NumofRegs) {
+        p = findEndlast();
+        if( p->End > end) { //spill the last one
+            printf("    push %s\n", Regs[p->OccupiedReg])
+            insertActiveNode(start, end, p->OccupiedReg);
+            insertSpilledNode(p->Start, p->End);
+            return p->OccupiedReg;
+        }
+        else {
+            i = insertSpilledNode(start, end);
+            return i;
+        }
+    }
+    else {
+        for(i = NumofRegs; i > 0  ; i--)
+            if(IfRegAvailable[i] == 1)
+                break;
+        insertActiveNode(start, end, i); 
+        return i;
+    }
+}
+*/
+
+int RegAllocation(int start, int end) {
+    int i = 0;
+    int NumNodes = lengthActiveNodeList();
+
+    if( NumNodes == NumofRegs) {
+        //spill
+    }
+    else {
+        for(i = NumofRegs; i > 0  ; i--)
+            if(IfRegAvailable[i] == 1)
+                break;
+        insertActiveNode(start, end, i); 
+        return i;
+    }
 }
 
 /*static char* burm_string = "FOO";*/
@@ -171,7 +394,7 @@ static int _ern = 0;
 
 static int shouldTrace = 0;
 static int shouldCover = 0;
-static int RegCounter = 1;
+//static int RegCounter = 1;
 static llvm::Function* PreFun = NULL;
 
 int OP_LABEL(NODEPTR p) {
@@ -192,7 +415,6 @@ int OP_LABEL(NODEPTR p) {
         case BRC:return 13;
 	    default: return p->op;
 	}
-    
 }
 
 static void burm_trace(NODEPTR, int, COST);
@@ -218,8 +440,8 @@ struct burm_state {
   struct burm_state **kids;
   COST cost[8];
   struct {
-    unsigned burm_stmt:3;
-    unsigned burm_reg:4;
+    unsigned burm_stmt:2;
+    unsigned burm_reg:5;
     unsigned burm_mem:3;
     unsigned burm_imm:1;
     unsigned burm_arglist:3;

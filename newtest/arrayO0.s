@@ -1,5 +1,5 @@
 	.text
-	.file	"pointerO0.bc"
+	.file	"arrayO0.bc"
 	.globl	main
 	.p2align	4, 0x90
 	.type	main,@function
@@ -14,27 +14,18 @@ main:                                   # @main
 	movq	%rsp, %rbp
 .Ltmp2:
 	.cfi_def_cfa_register %rbp
-	movq	$1, -8(%rbp)
-	leaq	-8(%rbp), %rax
-	movq	%rax, -24(%rbp)
-	leaq	-32(%rbp), %rax
-	movq	%rax, -16(%rbp)
-	movq	$2, -32(%rbp)
-	movq	-8(%rbp), %rax
-	movq	%rax, -64(%rbp)
-	movq	-8(%rbp), %rax
-	movq	-24(%rbp), %rcx
-	addq	(%rcx), %rax
-	movq	%rax, -56(%rbp)
+	movq	$0, -16(%rbp)
+	movq	$2, -8(%rbp)
 	movq	-16(%rbp), %rax
-	movq	(%rax), %rax
-	addq	-32(%rbp), %rax
 	movq	%rax, -48(%rbp)
-	movq	-16(%rbp), %rax
-	movq	(%rax), %rax
-	movq	-24(%rbp), %rcx
-	imulq	(%rcx), %rax
+	movq	-8(%rbp), %rax
 	movq	%rax, -40(%rbp)
+	movq	-16(%rbp), %rax
+	addq	-8(%rbp), %rax
+	movq	%rax, -32(%rbp)
+	movq	-16(%rbp), %rax
+	subq	-8(%rbp), %rax
+	movq	%rax, -24(%rbp)
 	xorl	%eax, %eax
 	popq	%rbp
 	retq
