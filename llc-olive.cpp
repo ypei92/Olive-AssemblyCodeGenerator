@@ -1,20 +1,4 @@
-#include "llvm/ADT/Statistic.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Dominators.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/IRReader/IRReader.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Pass.h"
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/Constant.h"
+
 #include "llc-olive-grammar.h"
 #include "llc-olive-grammar_cpp.h"
 #include <memory>
@@ -27,8 +11,8 @@ InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
-
 std::unique_ptr<Module> makeLLVMModule(char *inputfile, LLVMContext &Context);
+
 
 int main( int argc, char **argv) {
 
@@ -40,18 +24,7 @@ int main( int argc, char **argv) {
     return 0;
 
 }
-struct SymbolTable{
-    Value* v;
-    int addrCount;
-    SymbolTable* next;
 
-    SymbolTable(){
-        v = NULL;
-        addrCount = 0;
-        next = NULL;
-    }
-
-};
 void addSymbolTable(SymbolTable* &ST, Value* value){
     int temp;
     if(!value->getType()->getPointerElementType()->isPointerTy())
@@ -247,12 +220,27 @@ void printTree(Tree t, int depth){
 
 void printTreeList(TreeList* &TL){
     errs() << "this is the output\n";
+    printf("    .text\n");
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
-        printTree(temp->tptr, 0);
+        //printTree(temp->tptr, 0);
         //errs() << temp->tptr->op <<'\n';
         gen(temp->tptr);
-        errs()<<"\n";
+        // errs()<<"\n";
     } 
+    printf("\n");
+    printf("    .global main\n");
+    printf("main:\n");
+    printf("    push %%rbp\n");
+    printf("    mov %%rsp, %%rbp\n");
+    printf("    call _Your_main\n");
+    printf("    mov %%rbp, %%rsp\n");
+    printf("    pop %%rbp\n");
+    printf("    ret\n");
+
+    printf("\n");
+    printf("    .data\n");
+    // traverse the table for global value
+    // for printf("g_%s: .qual 0\n", g->val);
 }
 
 std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
@@ -297,11 +285,11 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                     errs()<<'\n';
                 }  
                 if(I.getOpcode() != 29) {// #define alloca 29
-                    Tree t = tree(I.getOpcode(), 0, 0);
+                    Tree t = tree(I.getOpcode(), 0, 0, ST);
                     t->I = &I;
                     addTree(TL ,t);
                     if(I.isBinaryOp() && I.hasName()){
-                        Tree t_mov = tree(30, 0, 0); //#define LOAD 30
+                        Tree t_mov = tree(30, 0, 0, ST); //#define LOAD 30
                         t->kids[1] = t_mov;
                         bool temp1 = mergeTreeListLeft(TL, I.getOperand(0), t);
                         bool temp2 = mergeTreeListLeft(TL, I.getOperand(1), t_mov);
@@ -311,13 +299,13 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                     }
                     else if(I.getOpcode() == 31 ){//#define store 31
-                        Tree offset_r = tree(999, 0, 0);//#define OFFSET 999
+                        Tree offset_r = tree(999, 0, 0, ST);//#define OFFSET 999
                         t->kids[1] = offset_r;
                         if(t->I->getOperand(0)->getType()->isIntegerTy()){
                             errs() << " find new constant\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
-                            Tree imm_l = tree(999, 0, 0);//#define OFFSET 999
+                            Tree imm_l = tree(999, 0, 0, ST);//#define OFFSET 999
                             t->kids[0] = imm_l;
                             errs() << "store left\n";
                             if(CI) {
@@ -340,7 +328,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                         else if(I.getOperand(0)->getType()->isPointerTy()){
                             errs() << "store from a pointer!\n";
-                            Tree offset = tree(999, 0, 0);
+                            Tree offset = tree(999, 0, 0, ST);
                             t->kids[0] = offset;
                             if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
                                 errs() << "find symboltable &&! merge tree left error\n";
@@ -352,7 +340,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                     }
                     else if(I.getOpcode() == 30){//#define load 30
-                        Tree offset = tree(999, 0, 0);// #define OFFSET 999
+                        Tree offset = tree(999, 0, 0, ST);// #define OFFSET 999
                         t->kids[0] = offset;
                         if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
                             errs() << "load from a pointer!\n";
@@ -367,12 +355,12 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                     else if(I.getOpcode() == 54){ // #define call 54
                         Tree tmp = t;
                         if(I.getNumOperands() > 1){
-                            t->kids[0] = tree(997, 0, 0);// #define ARGLIST 997
+                            t->kids[0] = tree(997, 0, 0, ST);// #define ARGLIST 997
                             tmp = t->kids[0];
                             t->val = I.getNumOperands() - 1;
                         }
                         for(int i = I.getNumOperands() - 2; i >= 0; i--){
-                            Tree t_arglist = tree(997, 0, 0); // #define ARGLIST 997                            
+                            Tree t_arglist = tree(997, 0, 0, ST); // #define ARGLIST 997                            
                             tmp->kids[1] = t_arglist;
                             mergeTreeListLeft(TL, I.getOperand(i), tmp);
                             if(i == 0){
@@ -389,7 +377,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                             errs() << " find new constant\n";
                             errs() << *(t->I->getOperand(0)->getType()) << '\n';
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
-                            Tree imm_l = tree(996, 0, 0);//#define IMM 996
+                            Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996
                             t->kids[0] = imm_l;
                             errs() << "store left\n";
                             if(CI) {
@@ -411,7 +399,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
                         else if(I.getOperand(0)->getType()->isPointerTy()){
                             errs() << "store from a pointer!\n";
-                            Tree offset = tree(999, 0, 0);
+                            Tree offset = tree(999, 0, 0, ST);
                             t->kids[0] = offset;
                             if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0), offset)))
                                 errs() << "find symboltable &&! merge tree left error\n";

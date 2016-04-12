@@ -20,10 +20,27 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <llvm/IR/Instruction.h>
-#include <llvm/IR/Instructions.h>
-//#include "/home1/04012/ypei/llvm/include/llvm/IR/Instruction.h"
-//#include "/home1/04012/ypei/llvm/include/llvm/IR/Instructions.h"
+//#include <llvm/IR/Instruction.h>
+//#include <llvm/IR/Instructions.h>
+#include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Pass.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Constant.h"
+
+using namespace llvm;
 
 enum {
     CALL=54,
@@ -35,7 +52,10 @@ enum {
     IMM=996,
     ARG=998,
     OFFSET=999,
-    ARGEND=995
+    ARGEND=995,
+    CMP=800,
+    BR=801,
+    BRC=802
 };
 
 static char ArgRegs[6][6] = {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9"};
@@ -58,11 +78,24 @@ enum {
     R10 = 11,
     R11 = 12
 };
+struct SymbolTable{
+    Value* v;
+    int addrCount;
+    SymbolTable* next;
+
+    SymbolTable(){
+        v = NULL;
+        addrCount = 0;
+        next = NULL;
+    }
+
+};
 
 typedef struct tree {
 	int op;
 	struct tree *kids[2];
 	int val;
+    SymbolTable* ST;
     llvm::Instruction *I;
     int valtype;
 	struct { struct burm_state *state; } x;
@@ -89,6 +122,15 @@ enum {
     arglisT=3,
     pointeR=4,
     nontypE = 999
+};
+
+enum {
+    SGT = 0,
+    SGE = 1,
+    SLT = 2,
+    SLE = 3,
+    NEQ = 4,
+    EQ = 5
 };
 
 typedef struct LoadedMem {
@@ -131,7 +173,6 @@ static int RegCounter = 1;
 static llvm::Function* PreFun = NULL;
 
 int OP_LABEL(NODEPTR p) {
-    if(p) printf(" p->op%d \n", p->op);
 	switch (p->op) {
 	    //case IMM:  if (p->val == 0) return ZERO;
         case CALL: return 1;
@@ -144,6 +185,9 @@ int OP_LABEL(NODEPTR p) {
         case ARG: return 8;
         case OFFSET: return 9;
         case ARGEND: return 10;
+        case CMP: return 11;
+        case BR: return 12;
+        case BRC:return 13;
 	    default: return p->op;
 	}
     
@@ -162,6 +206,9 @@ static void burm_trace(NODEPTR, int, COST);
 #define ARG 8
 #define OFFSET 9
 #define ARGEND 10
+#define CMP 11
+#define BR 12
+#define BRC 13
 
 struct burm_state {
   int op;
@@ -169,7 +216,7 @@ struct burm_state {
   struct burm_state **kids;
   COST cost[8];
   struct {
-    unsigned burm_stmt:2;
+    unsigned burm_stmt:3;
     unsigned burm_reg:4;
     unsigned burm_mem:3;
     unsigned burm_imm:1;
