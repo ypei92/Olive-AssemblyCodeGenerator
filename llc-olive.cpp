@@ -38,10 +38,12 @@ struct LiveRange{
     Value *v;
     int start;
     int end;
+    bool live;
     LiveRange(){
         v = NULL;
-        start = 0;
-        end = 0;
+        start = -1;
+        end = -1;
+        live = false;
     }
 };
 struct LiveTable{
@@ -49,24 +51,15 @@ struct LiveTable{
     LiveRange* LR;
     int NumVar;
     int bbstart;
+    int bbend;
     LiveTable(){
         bb = NULL;
         LR = NULL;
         NumVar = 0;
         bbstart = 0;
+        bbend = 0;
     }
 };
-struct SymbolTable{
-    Value* v;
-    int addrCount;
-    SymbolTable* next;
-
-    SymbolTable(){
-        v = NULL;
-        addrCount = 0;
-        next = NULL;
-    }
-
 void addSymbolTable(SymbolTable* &ST, Value* value){
     int temp;
     if(!value->getType()->getPointerElementType()->isPointerTy())
@@ -314,9 +307,36 @@ bool LiveUnion(BasicBlock* bb, BasicBlock* succ, LiveTable* LT, int NumBB){
             bb_LR[i].end = succ_LR[i].end;
             changed = true;
         }
+        if(succ_LR[i].start < bb_LR[i].start){
+            bb_LR[i].start = succ_LR[i].start;
+            changed = true;
+        }
+        bb_LR[i].live = succ_LR[i].live;
     }
     return changed;
     
+}
+
+bool addRangeIfLive(Value *Operand, LiveTable* LT, InstMap* IM){
+    int NumVar = LT->NumVar;
+    LiveRange* LR = LT->LR;
+    int bbend = LT->bbend;
+    
+    int bbstart = LT->bbstart;
+    bool changed = false;
+    for(int i = 0; i < NumVar; i++){
+        if(LR[i].live){
+            if(LR[i].end < bbend){
+                changed = true;
+                LR[i].end = bbend;
+            }
+            if(LR[i].start > bbstart){
+                LR[i].start = bbstart;
+                changed = true;
+            }
+        }
+    }
+    return changed;
 }
 bool addRange(Value* operand, Instruction * I, LiveTable* LT){
     LiveRange* LR = LT->LR;
@@ -325,26 +345,27 @@ bool addRange(Value* operand, Instruction * I, LiveTable* LT){
     int opd_ID = 0, I_ID = 0;
     for(int i = 0; i < NumVar; i++){
         if(LR[i].v == operand){
-            opd_ID = i + 1;
+            opd_ID = i;
         }
         if(LR[i].v == (Value*)I){
             //LR[i].v->print(errs());
             //errs() << '\n';
             //I->print(errs());
             //errs() << '\n';
-            I_ID = i + 1;
+            I_ID = i;
         }
     }
     errs() << opd_ID << " " << I_ID << '\n';
-    if(LR[opd_ID].end < I_ID && opd_ID != 0){
+    if(LR[opd_ID].end < I_ID){
         LR[opd_ID].end = I_ID;
+        LR[opd_ID].live = true;
         changed = true;
     }
     return changed;
 
 
 }
-/*bool setStart(Instruction* I, LiveTable* LT){
+bool setStart(Instruction* I, LiveTable* LT){
     LiveRange* LR = LT->LR;
     int NumVar = LT->NumVar;
     bool changed = false;
@@ -354,12 +375,13 @@ bool addRange(Value* operand, Instruction * I, LiveTable* LT){
             I_ID = i;
         }
     }
-    if(LR[I_ID].start < I_ID && I_ID != 0){
+    if(LR[I_ID].start < I_ID){
         LR[I_ID].start = I_ID;
+        LR[I_ID].live = false;
         changed = true;
     }
     return changed;
-}*/
+}
 std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
     SMDiagnostic Err;
     std::unique_ptr<Module> M;
@@ -523,6 +545,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                         }
 
                     }
+
                     else if(!mergeTreeList(TL, t)){
                         errs() << "independent tree!\n";
                         //addTree(TL, t);
@@ -546,7 +569,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
         int j = 0;
         for(auto I = inst_begin(f); I != inst_end(f); I++, j++){
             IM[j].I = &*I;
-            IM[j].N = j + 1;
+            IM[j].N = j;
         }
         int i = 0;
         errs() << "number of instructions : " << NumInst << '\n';
@@ -559,11 +582,15 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
             j = 0;
             for(auto I = inst_begin(&f), E = inst_end(&f); I != E; j++, I++){
                 LiveIn[i].LR[j].v = (Value*) &*I;
-                LiveIn[i].LR[j].start = j + 1;
-                LiveIn[i].LR[j].end = 0;
+                LiveIn[i].LR[j].start = -1;
+                LiveIn[i].LR[j].end = -1;
                 if((&*I) == (&* (LiveIn[i].bb->begin()))){
                     LiveIn[i].bbstart = j;
                 }
+                if((&*I) == (&* (LiveIn[i].bb->end()))){
+                    LiveIn[i].bbend = j;
+                }
+
                 //errs() << "what tf?\n";
             }
           
@@ -584,10 +611,10 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                 }
                 auto& instList = B->getInstList();
                 for(auto I = instList.begin(), E = instList.end(); I != E; I++){
-                    //changed != addRange(NULL, &*I, &(LiveIn[i]));
+                    changed |= addRangeIfLive(&*I, &(LiveIn[i]), IM);
                 }
                 for(auto I = instList.rbegin() , E = instList.rend(); I != E; I++){
-                    //changed |= setStart(I, &(LiveIn[i]));
+                    changed |= setStart(&*I, &(LiveIn[i]));
                     //errs() << I->getOpcode() << '\n';
                     //LiveIn[0].LR[0].v->print(errs());
                     for(int j = 0; j < I->getNumOperands(); j++){
@@ -597,6 +624,7 @@ std::unique_ptr<Module> makeLLVMModule(char* inputfile, LLVMContext &Context) {
                 }
             }
             errs() << changed <<'\n';
+            printLR(LiveIn[0].LR, LiveIn[0].NumVar);
         }
         while(changed);
 
