@@ -11,7 +11,8 @@ static cl::opt<std::string>
 OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
 static cl::opt<unsigned int>
-NumRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(16));
+NumofRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(16));
+int NumRegs = NumofRegs;
 
 std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string> &InputFilename, LLVMContext &Context);
 
@@ -22,7 +23,7 @@ int main( int argc, char **argv) {
     cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
     std::unique_ptr<Module> M = makeLLVMModule(InputFilename, Context);
     
-    errs() << "NumRegs: "<< NumRegs << "\n";
+    errs() << "NumofRegs: "<< NumofRegs << "\n";
 //    verifyModule(*Mod, PrintMessageAction);
 
     return 0;
@@ -39,18 +40,7 @@ struct InstMap{
     }
 };
 
-struct LiveRange{
-    Value *v;
-    int start;
-    int end;
-    bool live;
-    LiveRange(){
-        v = NULL;
-        start = -1;
-        end = -1;
-        live = false;
-    }
-};
+
 struct LiveTable{
     BasicBlock * bb;
     LiveRange* LR;
@@ -275,8 +265,8 @@ void printTreeList(TreeList* TL, LiveRange* LR, int n){
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
         //printTree(temp->tptr, 0);
         //errs() << temp->tptr->op <<'\n';
-        //gen(temp->tptr);
-        errs()<<"\n";
+        gen(temp->tptr);
+        //errs()<<"\n";
     }
     printf("\n");
     printf("    .global main\n");
@@ -292,7 +282,7 @@ void printTreeList(TreeList* TL, LiveRange* LR, int n){
     printf("    .data\n");
     // traverse the table for global value
     // for printf("g_%s: .qual 0\n", g->val);
-    printLR(LR, n);
+    //printLR(LR, n);
 }
 
 bool LiveUnion(BasicBlock* bb, BasicBlock* succ, LiveTable* LT, int NumBB){
@@ -380,7 +370,7 @@ bool addRange(Value* operand, Instruction * I, LiveTable* LT, SymbolTable* ST){
             LR[opd_ID].end = I_ID;
             changed = true;
         }
-        errs() << " found symboltable: " << opd_ID << " " << I_ID << "\n";
+        //errs() << " found symboltable: " << opd_ID << " " << I_ID << "\n";
     }
     else if( LR[opd_ID].end < I_ID){
         LR[opd_ID].end = I_ID;
@@ -451,11 +441,11 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 } 
                 Tree t = tree(I.getOpcode(), 0, 0, ST);
                 t->I = &I;
-                addTree(TL ,t);
+                if(I.getOpcode() != 29)
+                    addTree(TL ,t);
                 switch(I.getOpcode()){
                     case 29: {// #define alloca 29
                         addSymbolTable(ST, (Value* )&I);
-                        removeTree(TL, t);       
                         break;
                     }
                     case 11: {//define add 11
@@ -723,7 +713,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         bool changed = false;
         do
         {
-            errs() << "not fixed!" << NumBB <<" \n";
+            //errs() << "not fixed!" << NumBB <<" \n";
             i = NumBB - 1;
             changed = false;
             auto& bbList = f.getBasicBlockList();
@@ -754,7 +744,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 }
             }
             errs() << changed <<'\n';
-            printLR(LiveIn[0].LR, LiveIn[0].NumVars);
+            //printLR(LiveIn[0].LR, LiveIn[0].NumVars);
         }
         while(changed);
         i = 0;

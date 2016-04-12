@@ -39,7 +39,9 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Constant.h"
-
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/InstrTypes.h"
 using namespace llvm;
 
 enum {
@@ -63,8 +65,21 @@ static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
 static char CallerRegs[2][5] = {"%r10", "%r11"};
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
 static bool IfRegAvailable[13] = {0};
-extern int NumofRegs;
+extern int NumRegs;
 static int LocalVarStack = 0;
+
+struct LiveRange{
+    Value *v;
+    int start;
+    int end;
+    bool live;
+    LiveRange(){
+        v = NULL;
+        start = -1;
+        end = -1;
+        live = false;
+    }
+};
 
 struct SymbolTable{
     Value* v;
@@ -77,7 +92,6 @@ struct SymbolTable{
         next = NULL;
     }
 };
-//struct LiveRange
 
 typedef struct tree {
 	int op;
@@ -86,7 +100,7 @@ typedef struct tree {
     SymbolTable* ST;
     llvm::Instruction *I;
     int valtype;
-    //LiveRange* LR;
+    LiveRange* LR;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -232,7 +246,7 @@ void clearActiveNodeList() {
         delete p;
         p = ActiveNodeHead->next;
     }
-    for( int i = 0 ; i < NumofRegs; i++)
+    for( int i = 0 ; i < NumRegs; i++)
         IfRegAvailable[i] = 1;
 }
 
@@ -328,7 +342,7 @@ void clearSpilledNodeList() {
         delete p;
         p = SpilledNodeHead->next;
     }
-    for( int i = 0 ; i < NumofRegs; i++)
+    for( int i = 0 ; i < NumRegs; i++)
         IfRegAvailable[i] = 1;
 
     SpilledNodeHead->Start = 0;
@@ -343,12 +357,12 @@ int RegAllocation(int start, int end) {
     int NumNodes = lengthActiveNodeList();
     int NumSpilled=lengthSpilledNodeList();
     
-    int NumSlots = NumofRegs - NumNodes;
+    int NumSlots = NumRegs - NumNodes;
     int NumUnassigned = NumSpilled + 1; 
     int NumofAssign = (NumSlots > NumUnassigned)?NumUnassigned:NumSlots;
 
     int addr = -1;
-    if( NumNodes == NumofRegs) {
+    if( NumNodes == NumRegs) {
         p = findEndlast();
         if( p->End > end) { //spill the last one
             printf("    push %s\n", Regs[p->OccupiedReg])
@@ -362,7 +376,7 @@ int RegAllocation(int start, int end) {
         }
     }
     else {
-        for(i = NumofRegs; i > 0  ; i--)
+        for(i = NumRegs; i > 0  ; i--)
             if(IfRegAvailable[i] == 1)
                 break;
         insertActiveNode(start, end, i); 
@@ -375,11 +389,11 @@ int RegAllocation(int start, int end) {
     int i = 0;
     int NumNodes = lengthActiveNodeList();
 
-    if( NumNodes == NumofRegs) {
+    if( NumNodes == NumRegs) {
         //spill
     }
     else {
-        for(i = NumofRegs; i > 0  ; i--)
+        for(i = NumRegs; i > 0  ; i--)
             if(IfRegAvailable[i] == 1)
                 break;
         insertActiveNode(start, end, i); 
