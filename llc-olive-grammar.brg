@@ -61,6 +61,7 @@ enum {
 //static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
 //static char CallerRegs[2][5] = {"%r10", "%r11"};
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
+static char Operation[3][6] = {"addq", "subq", "imulq"};
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
 extern int GlobalLength;
@@ -687,7 +688,7 @@ reg:    CALL(arglist)
 reg:    PRINTF(reg)
 { $cost[0].cost=$cost[2].cost+1; }
     = {
-
+        $0->I->print(errs());
         printf("    movq %s, %%rsi\n", Regs[$2->val]);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
@@ -701,6 +702,7 @@ reg:    PRINTF(LOAD(mem))
 { $cost[0].cost=$cost[3].cost+1; }
     = {
 
+        $0->I->print(errs());
         printf("    movq %d(%%rbp), %%rsi\n", $3->val);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
@@ -714,6 +716,7 @@ reg:    PRINTF(LOAD(globalvar))
 { $cost[0].cost=$cost[3].cost+1; }
     = {
 
+        $0->I->print(errs());
         printf("    movq g_%d(%%rip), %%rsi\n", $3->val);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
@@ -730,7 +733,7 @@ reg:    ADD(reg, reg)
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %s, %s\n", Regs[$2->val], Regs[$3->val]);
+        printf("    %s %s, %s\n",Operation[$0->opop], Regs[$2->val], Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -744,7 +747,7 @@ reg:    ADD(imm, reg)
         $action[2](0);
         $action[3](0);
 
-        printf("    addq $%d, %s\n", $2->val, Regs[$3->val]);
+        printf("    %s $%d, %s\n",Operation[$0->opop], $2->val, Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -757,7 +760,7 @@ reg:    ADD(mem, reg)
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %d(%%rbp), %s\n", $2->val, Regs[$3->val]);
+        printf("    %s %d(%%rbp), %s\n",Operation[$0->opop], $2->val, Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -770,7 +773,7 @@ reg:    ADD(globalvar, reg)
         $action[2](0);
         $action[3](0);
 
-        printf("    addq g_%d(%%rip), %s\n", $2->val, Regs[$3->val]);
+        printf("    %s g_%d(%%rip), %s\n",Operation[$0->opop], $2->val, Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -783,7 +786,7 @@ reg:    ADD(LOAD(mem), reg)
         $action[3](0);
         $action[4](0);
 
-        printf("    addq %d(%%rbp), %s\n", $3->val, Regs[$4->val]);
+        printf("    %s %d(%%rbp), %s\n",Operation[$0->opop], $3->val, Regs[$4->val]);
 
         $0->val = $4->val;
         $0->valtype = reG;
@@ -804,8 +807,9 @@ reg:    LOAD(reg)
 
         $action[2](0);
 
+        //printf("here here!\n");
         int tar = RegAllocation($0->LR->start, $0->LR->end);
-        printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
+        printf("    movq %s, %s\n", Regs[$2->val], Regs[tar]);
         //printActiveNodeList();
 
         $0->val = tar;
@@ -920,7 +924,7 @@ globalvar: ADD(reg, globalvar)
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %s, g_%d(%%rip)\n", Regs[$2->val], $3->val);
+        printf("    %s %s, g_%d(%%rip)\n",Operation[$0->opop], Regs[$2->val], $3->val);
 
         $0->val = $3->val;
         $0->valtype = globalvaR;
@@ -934,7 +938,8 @@ mem:    ADD(reg, mem)
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %s, %d(%%rbp)\n", Regs[$2->val], $3->val);
+        //printf("    addq %s, %d(%%rbp)\n", Regs[$2->val], $3->val);
+        printf("    %s %s, %d(%%rbp)\n",Operation[$0->opop], Regs[$2->val], $3->val);
 
         $0->val = $3->val;
         $0->valtype = meM;

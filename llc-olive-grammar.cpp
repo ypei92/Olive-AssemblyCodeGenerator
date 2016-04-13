@@ -285,50 +285,50 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  460,
-  /* 1 */  467,
-  /* 2 */  499,
-  /* 3 */  531,
-  /* 4 */  544,
-  /* 5 */  568,
-  /* 6 */  592,
-  /* 7 */  616,
-  /* 8 */  629,
-  /* 9 */  642,
-  /* 10 */  655,
-  /* 11 */  668,
-  /* 12 */  689,
-  /* 13 */  702,
-  /* 14 */  715,
-  /* 15 */  728,
-  /* 16 */  742,
-  /* 17 */  755,
-  /* 18 */  768,
-  /* 19 */  781,
-  /* 20 */  794,
-  /* 21 */  803,
-  /* 22 */  817,
-  /* 23 */  831,
-  /* 24 */  845,
-  /* 25 */  865,
-  /* 26 */  891,
-  /* 27 */  911,
-  /* 28 */  918,
-  /* 29 */  932,
-  /* 30 */  946,
-  /* 31 */  958,
-  /* 32 */  972,
-  /* 33 */  984,
-  /* 34 */  996,
-  /* 35 */  1023,
-  /* 36 */  1029,
-  /* 37 */  1043,
-  /* 38 */  1066,
-  /* 39 */  1089,
-  /* 40 */  1105,
-  /* 41 */  1121,
-  /* 42 */  1127,
-  /* 43 */  1133,
+  /* 0 */  461,
+  /* 1 */  468,
+  /* 2 */  500,
+  /* 3 */  532,
+  /* 4 */  545,
+  /* 5 */  569,
+  /* 6 */  593,
+  /* 7 */  617,
+  /* 8 */  630,
+  /* 9 */  643,
+  /* 10 */  656,
+  /* 11 */  669,
+  /* 12 */  690,
+  /* 13 */  703,
+  /* 14 */  717,
+  /* 15 */  731,
+  /* 16 */  745,
+  /* 17 */  758,
+  /* 18 */  771,
+  /* 19 */  784,
+  /* 20 */  797,
+  /* 21 */  806,
+  /* 22 */  821,
+  /* 23 */  835,
+  /* 24 */  849,
+  /* 25 */  869,
+  /* 26 */  895,
+  /* 27 */  915,
+  /* 28 */  922,
+  /* 29 */  936,
+  /* 30 */  951,
+  /* 31 */  963,
+  /* 32 */  977,
+  /* 33 */  989,
+  /* 34 */  1001,
+  /* 35 */  1028,
+  /* 36 */  1034,
+  /* 37 */  1048,
+  /* 38 */  1071,
+  /* 39 */  1094,
+  /* 40 */  1110,
+  /* 41 */  1126,
+  /* 42 */  1132,
+  /* 43 */  1138,
 };
 
 #pragma GCC diagnostic push
@@ -1149,7 +1149,7 @@ int indent)
 
 
 
-
+        _s->node->I->print(errs());
         printf("    movq %s, %%rsi\n", Regs[_s->kids[0]->node->val]);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
@@ -1166,6 +1166,7 @@ int indent)
 
 
 
+        _s->node->I->print(errs());
         printf("    movq %d(%%rbp), %%rsi\n", _s->kids[0]->kids[0]->node->val);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
@@ -1182,6 +1183,7 @@ int indent)
 
 
 
+        _s->node->I->print(errs());
         printf("    movq g_%d(%%rip), %%rsi\n", _s->kids[0]->kids[0]->node->val);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
@@ -1201,7 +1203,7 @@ int indent)
         reg_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq %s, %s\n", Regs[_s->kids[0]->node->val], Regs[_s->kids[1]->node->val]);
+        printf("    %s %s, %s\n",Operation[_s->node->opop], Regs[_s->kids[0]->node->val], Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -1217,7 +1219,7 @@ int indent)
         imm_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq $%d, %s\n", _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
+        printf("    %s $%d, %s\n",Operation[_s->node->opop], _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -1233,7 +1235,7 @@ int indent)
         mem_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
+        printf("    %s %d(%%rbp), %s\n",Operation[_s->node->opop], _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -1249,7 +1251,7 @@ int indent)
         globalvar_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq g_%d(%%rip), %s\n", _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
+        printf("    %s g_%d(%%rip), %s\n",Operation[_s->node->opop], _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -1265,7 +1267,7 @@ int indent)
         mem_action(_s->kids[0]->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
+        printf("    %s %d(%%rbp), %s\n",Operation[_s->node->opop], _s->kids[0]->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -1292,8 +1294,9 @@ int indent)
 
         reg_action(_s->kids[0],0);
 
+        //printf("here here!\n");
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
-        printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
+        printf("    movq %s, %s\n", Regs[_s->kids[0]->node->val], Regs[tar]);
         //printActiveNodeList();
 
         _s->node->val = tar;
@@ -1443,7 +1446,8 @@ int indent)
         reg_action(_s->kids[0],0);
         mem_action(_s->kids[1],0);
 
-        printf("    addq %s, %d(%%rbp)\n", Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
+        //printf("    addq %s, %d(%%rbp)\n", Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
+        printf("    %s %s, %d(%%rbp)\n",Operation[_s->node->opop], Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = meM;
@@ -1724,7 +1728,7 @@ int indent)
         reg_action(_s->kids[0],0);
         globalvar_action(_s->kids[1],0);
 
-        printf("    addq %s, g_%d(%%rip)\n", Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
+        printf("    %s %s, g_%d(%%rip)\n",Operation[_s->node->opop], Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = globalvaR;

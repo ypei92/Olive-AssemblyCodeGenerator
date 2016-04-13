@@ -66,6 +66,7 @@ enum {
 //static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
 //static char CallerRegs[2][5] = {"%r10", "%r11"};
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
+static char Operation[3][6] = {"addq", "subq", "imulq"};
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
 extern int GlobalLength;

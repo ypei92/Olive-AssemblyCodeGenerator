@@ -3,6 +3,15 @@
 
 long long foo(long long a,long long b,long long c,long long d,
               long long e,long long f,long long g,long long h){
+
+    printf("%lld\n",a);
+    printf("%lld\n",b);
+    printf("%lld\n",c);
+    printf("%lld\n",d);
+    printf("%lld\n",e);
+    printf("%lld\n",f);
+    printf("%lld\n",g);
+    printf("%lld\n",h);
     return a + b + c + d + e + f + g + h;
 }
 int main()
