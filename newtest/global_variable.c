@@ -1,20 +1,19 @@
 #include "stdio.h"
 #include "stdlib.h"
-int d = 20;
-long e = 30;
+long long d = 20;
+long long e = 30;
 long long f = 40;
 
 int main()
 {
-    int a = 0;
-    int b;
-
-    b = 2;
-    int c = 3;
+    long long a = 2;
+    long long b;
+    b = 3;
+    long long c = 4;
 
     d = a+d;
     e = b+e;
     f = c+f;
 
-    printf("%d %ld %lld\n", d, e, f);
+    //printf("%d %ld %lld\n", d, e, f);
 }

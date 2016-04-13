@@ -240,40 +240,40 @@ int burm_file_numbers[] = {
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  443,
-  /* 1 */  450,
-  /* 2 */  481,
-  /* 3 */  512,
-  /* 4 */  525,
-  /* 5 */  549,
-  /* 6 */  573,
-  /* 7 */  597,
-  /* 8 */  610,
-  /* 9 */  623,
-  /* 10 */  636,
-  /* 11 */  653,
-  /* 12 */  666,
-  /* 13 */  678,
-  /* 14 */  690,
-  /* 15 */  702,
-  /* 16 */  710,
-  /* 17 */  724,
-  /* 18 */  742,
-  /* 19 */  755,
-  /* 20 */  767,
-  /* 21 */  773,
-  /* 22 */  785,
-  /* 23 */  798,
-  /* 24 */  810,
-  /* 25 */  824,
-  /* 26 */  836,
-  /* 27 */  849,
-  /* 28 */  855,
-  /* 29 */  870,
-  /* 30 */  887,
-  /* 31 */  899,
-  /* 32 */  911,
-  /* 33 */  917,
+  /* 0 */  444,
+  /* 1 */  451,
+  /* 2 */  482,
+  /* 3 */  513,
+  /* 4 */  526,
+  /* 5 */  550,
+  /* 6 */  574,
+  /* 7 */  598,
+  /* 8 */  611,
+  /* 9 */  624,
+  /* 10 */  637,
+  /* 11 */  656,
+  /* 12 */  671,
+  /* 13 */  685,
+  /* 14 */  699,
+  /* 15 */  713,
+  /* 16 */  723,
+  /* 17 */  739,
+  /* 18 */  759,
+  /* 19 */  774,
+  /* 20 */  788,
+  /* 21 */  796,
+  /* 22 */  810,
+  /* 23 */  825,
+  /* 24 */  837,
+  /* 25 */  851,
+  /* 26 */  863,
+  /* 27 */  890,
+  /* 28 */  896,
+  /* 29 */  911,
+  /* 30 */  928,
+  /* 31 */  940,
+  /* 32 */  952,
+  /* 33 */  958,
 };
 
 #pragma GCC diagnostic push
@@ -958,6 +958,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+
         if( _s->node->val != 0 )
             arglist_action(_s->kids[0],0);
 
@@ -978,6 +980,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+
         reg_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
@@ -992,6 +996,8 @@ int indent)
 {
 
 
+
+        if(_s->node->marked) return; _s->node->marked = true;
 
         imm_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
@@ -1008,6 +1014,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+
         mem_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
@@ -1022,6 +1030,8 @@ int indent)
 {
 
 
+
+        if(_s->node->marked) return; _s->node->marked = true;
 
         mem_action(_s->kids[0]->kids[0],0);
         reg_action(_s->kids[1],0);
@@ -1038,6 +1048,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+
         reg_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
         printf("    cmpq %s, %s\n", Regs[_s->kids[0]->node->val], Regs[_s->kids[1]->node->val]);
@@ -1048,6 +1060,8 @@ int indent)
 {
 
 
+
+        if(_s->node->marked) return; _s->node->marked = true;
 
         reg_action(_s->kids[0],0);
 
@@ -1065,6 +1079,8 @@ int indent)
 {
 
 
+
+        if(_s->node->marked) return; _s->node->marked = true;
 
         mem_action(_s->kids[0],0);
 
@@ -1087,6 +1103,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+        
         mem_action(_s->kids[0]->kids[0],0);
 
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
@@ -1103,6 +1121,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+
         mem_action(_s->kids[0]->kids[0]->kids[0],0);
 
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
@@ -1117,6 +1137,8 @@ int indent)
 {
 
 
+
+        if(_s->node->marked) return; _s->node->marked = true;
 
         _s->node->val = -1;
     
@@ -1141,6 +1163,8 @@ int indent)
 
 
 
+        if(_s->node->marked) return; _s->node->marked = true;
+
         reg_action(_s->kids[0],0);
         mem_action(_s->kids[1],0);
 
@@ -1155,6 +1179,8 @@ int indent)
 {
 
 
+
+        if(_s->node->marked) return; _s->node->marked = true;
 
         reg_action(_s->kids[0],0);
         mem_action(_s->kids[1]->kids[0]->kids[0],0);
@@ -1220,10 +1246,24 @@ int indent)
 
         mem_action(_s->kids[0],0);
         mem_action(_s->kids[1],0);
+        
+        bool pointer0 = false, pointer1 = false; 
+        if(_s->node->I->getOperand(0)->getType()->isPointerTy())
+            pointer0 = 
+            _s->node->I->getOperand(0)->getType()->getPointerElementType()->isPointerTy();
+        if(_s->node->I->getOperand(1)->getType()->isPointerTy())
+            pointer1 = 
+            _s->node->I->getOperand(1)->getType()->getPointerElementType()->isPointerTy();
 
-        printf("    movq %d(%%rbp), %%rax\n", _s->kids[0]->node->val);    
-        printf("    movq %%rax, %d(%%rbp)\n", _s->kids[1]->node->val);
-
+        if(pointer0 == 0 && pointer1 == 1){
+            printf("    leaq %d(%%rbp), %%rax\n", _s->kids[0]->node->val);    
+            printf("    movq %%rax, %d(%%rbp)\n", _s->kids[1]->node->val);
+        }
+        else {
+            //printf("really?");
+            printf("    movq %d(%%rbp), %%rax\n", _s->kids[0]->node->val);    
+            printf("    movq %%rax, %d(%%rbp)\n", _s->kids[1]->node->val);
+        }
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = meM;
     
@@ -2017,5 +2057,7 @@ static Tree tree(int op, Tree l, Tree r, SymbolTable* ST) {
     t->I = 0;
     t->ST = ST;
     t->LR = NULL;
+    t->marked = false;
 	return t;
+
 }

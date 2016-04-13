@@ -101,6 +101,7 @@ typedef struct tree {
     llvm::Instruction *I;
     int valtype;
     LiveRange* LR;
+    bool marked;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 

@@ -33,8 +33,8 @@ entry:
   %8 = load i64, i64* %7, align 8
   %9 = load i64*, i64** %p, align 8
   %10 = load i64, i64* %9, align 8
-  %mul = mul nsw i64 %8, %10
-  store i64 %mul, i64* %e, align 8
+  %add2 = add nsw i64 %8, %10
+  store i64 %add2, i64* %e, align 8
   ret i32 0
 }
 

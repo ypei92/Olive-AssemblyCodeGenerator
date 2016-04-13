@@ -96,6 +96,7 @@ typedef struct tree {
     llvm::Instruction *I;
     int valtype;
     LiveRange* LR;
+    bool marked;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -634,6 +635,8 @@ reg:    RET(mem)
 reg:    CALL(arglist)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         if( $0->val != 0 )
             $action[2](0);
 
@@ -651,6 +654,8 @@ reg:    CALL(arglist)
 reg:    ADD(reg, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
@@ -664,6 +669,8 @@ reg:    ADD(reg, reg)
 reg:    ADD(imm, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
@@ -676,6 +683,8 @@ reg:    ADD(imm, reg)
 reg:    ADD(mem, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
@@ -688,6 +697,8 @@ reg:    ADD(mem, reg)
 reg:    ADD(LOAD(mem), reg)
     { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[3](0);
         $action[4](0);
 
@@ -700,6 +711,8 @@ reg:    ADD(LOAD(mem), reg)
 reg:   CMP(reg, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
         printf("    cmpq %s, %s\n", Regs[$2->val], Regs[$3->val]);
@@ -708,6 +721,8 @@ reg:   CMP(reg, reg)
 reg:    LOAD(reg)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
 
         // printf("    movq %%%d, %%%d\n", $2->val, RegCounter);
@@ -722,6 +737,8 @@ reg:    LOAD(reg)
 reg:    LOAD(mem)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
 
         //Function* CurFun = $0->I->getFunction();
@@ -740,6 +757,8 @@ reg:    LOAD(mem)
 reg:    LOAD(LOAD(mem))
     { $cost[0].cost=$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+        
         $action[3](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
@@ -753,6 +772,8 @@ reg:    LOAD(LOAD(mem))
 reg:    LOAD(LOAD(LOAD(mem)))
     { $cost[0].cost=$cost[4].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[4](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
@@ -765,12 +786,16 @@ reg:    LOAD(LOAD(LOAD(mem)))
 reg:    ARG
     { $cost[0].cost = 0; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $0->val = -1;
     };
 
 mem:    ADD(reg, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
@@ -783,6 +808,8 @@ mem:    ADD(reg, mem)
 mem:    ADD(reg, LOAD(LOAD(mem)))
     { $cost[0].cost=$cost[2].cost+$cost[5].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[5](0);
 
@@ -836,10 +863,24 @@ mem:    STORE(mem, mem)
     = {
         $action[2](0);
         $action[3](0);
+        
+        bool pointer0 = false, pointer1 = false; 
+        if($0->I->getOperand(0)->getType()->isPointerTy())
+            pointer0 = 
+            $0->I->getOperand(0)->getType()->getPointerElementType()->isPointerTy();
+        if($0->I->getOperand(1)->getType()->isPointerTy())
+            pointer1 = 
+            $0->I->getOperand(1)->getType()->getPointerElementType()->isPointerTy();
 
-        printf("    movq %d(%%rbp), %%rax\n", $2->val);    
-        printf("    movq %%rax, %d(%%rbp)\n", $3->val);
-
+        if(pointer0 == 0 && pointer1 == 1){
+            printf("    leaq %d(%%rbp), %%rax\n", $2->val);    
+            printf("    movq %%rax, %d(%%rbp)\n", $3->val);
+        }
+        else {
+            //printf("really?");
+            printf("    movq %d(%%rbp), %%rax\n", $2->val);    
+            printf("    movq %%rax, %d(%%rbp)\n", $3->val);
+        }
         $0->val = $3->val;
         $0->valtype = meM;
     };
@@ -947,5 +988,7 @@ static Tree tree(int op, Tree l, Tree r, SymbolTable* ST) {
     t->I = 0;
     t->ST = ST;
     t->LR = NULL;
+    t->marked = false;
 	return t;
+
 }
