@@ -705,8 +705,8 @@ reg:    LOAD(mem)
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, $2->val))
         //insertLoadedMem(name, $2->val, RegCounter);
-        printf("failded here\n");
-        printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
+        //printf("failded here\n");
+        //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
 
@@ -720,8 +720,8 @@ reg:    LOAD(LOAD(mem))
         $action[3](0);
 
         //printf("    movq %d(%%rbp), %%%d\n", $3->val, RegCounter);
-        printf("failded here2\n");
-        printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
+        //printf("failded here2\n");
+        //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
 
