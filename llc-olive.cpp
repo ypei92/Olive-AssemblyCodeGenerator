@@ -594,8 +594,12 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                         addSymbolTable(ST, (Value* )&I);
                         break;
                     }
-                    case 11: {//define add 11
+                    case 13: t->opop = 1;// define sub 11.1
+                    case 15: t->opop = 2;//define mul 11.2
+                    case 11: {//define add 11.0
+                        t->opop = 0;
                         if(I.isBinaryOp() && I.hasName()){
+                            
                             Tree t_mov = tree(30, 0, 0, ST); //#define LOAD 30
                             t->kids[1] = t_mov;
                             bool temp1 = mergeTreeListLeft(TL, I.getOperand(0), t);

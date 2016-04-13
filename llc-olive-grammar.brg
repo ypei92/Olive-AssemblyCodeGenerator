@@ -106,6 +106,7 @@ typedef struct tree {
     SymbolTable* ST;
     llvm::Instruction *I;
     int valtype;
+    int opop;
     LiveRange* LR;
     bool marked;
 	struct { struct burm_state *state; } x;
@@ -1144,6 +1145,7 @@ static Tree tree(int op, Tree l, Tree r, SymbolTable* ST) {
     t->I = 0;
     t->ST = ST;
     t->LR = NULL;
+    t->opop = 0;
     t->marked = false;
 	return t;
 
