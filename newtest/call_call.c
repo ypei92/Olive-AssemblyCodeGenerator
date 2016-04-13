@@ -2,8 +2,8 @@
 #include "stdlib.h"
 
 long long foo(long long a,long long b,long long c,long long d,
-              long long e,long long f,long long g,long long h, long long i){
-    return a + b + c + d + e + f + g + h + i;
+              long long e,long long f,long long g,long long h){
+    return a + b + c + d + e + f + g + h;
 }
 int main()
 {
@@ -16,10 +16,9 @@ int main()
     long long f = 6;
     long long g = 7;
     long long h = 8;
-    long long i = 9;
 
-    long long res = foo(a,b,c,d,e,f,g,h,i);
-    long long res1= foo(i,h,g,f,e,d,c,b,a);
+    long long res = foo(a,b,c,d,e,f,g,h);
+    long long res1= foo(h,g,f,e,d,c,b,a);
 
     printf("%lld\n",res);
     printf("%lld\n",res1);

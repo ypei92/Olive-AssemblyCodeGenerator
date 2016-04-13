@@ -14,28 +14,38 @@ main:                                   # @main
 	movq	%rsp, %rbp
 .Ltmp2:
 	.cfi_def_cfa_register %rbp
-	movl	$0, -20(%rbp)
-	movq	$1, -16(%rbp)
-	movq	$2, -8(%rbp)
-	movq	$0, -32(%rbp)
-	movq	-16(%rbp), %rax
-	cmpq	-8(%rbp), %rax
+	subq	$32, %rsp
+	movl	$0, -28(%rbp)
+	movq	$1, -24(%rbp)
+	movq	$2, -16(%rbp)
+	movq	$0, -8(%rbp)
+	movq	-24(%rbp), %rax
+	cmpq	-16(%rbp), %rax
 	jle	.LBB0_2
 # BB#1:                                 # %if.then
 	movq	-16(%rbp), %rax
-	imulq	-8(%rbp), %rax
 	jmp	.LBB0_3
 .LBB0_2:                                # %if.else
-	movq	-16(%rbp), %rax
-	addq	-8(%rbp), %rax
+	movq	-24(%rbp), %rax
 .LBB0_3:                                # %if.end
-	movq	%rax, -32(%rbp)
-	movl	-20(%rbp), %eax
+	movq	%rax, -8(%rbp)
+	movq	-8(%rbp), %rsi
+	movl	$.L.str, %edi
+	xorl	%eax, %eax
+	callq	printf
+	xorl	%eax, %eax
+	addq	$32, %rsp
 	popq	%rbp
 	retq
 .Lfunc_end0:
 	.size	main, .Lfunc_end0-main
 	.cfi_endproc
+
+	.type	.L.str,@object          # @.str
+	.section	.rodata.str1.1,"aMS",@progbits,1
+.L.str:
+	.asciz	"%lld\n"
+	.size	.L.str, 6
 
 
 	.ident	"clang version 3.9.0 "

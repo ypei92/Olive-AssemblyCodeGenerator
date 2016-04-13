@@ -211,7 +211,7 @@ static ActiveNode *ActiveNodeHead = new ActiveNode;
 void expireOldIntervals(int cur_point) {
     ActiveNode *p = ActiveNodeHead->next;
     while(p != NULL){
-        if( p->End > cur_point ) 
+        if( p->End >= cur_point ) 
             break;
         p = p->next;
     }
@@ -471,7 +471,7 @@ struct burm_state {
   struct {
     unsigned burm_stmt:2;
     unsigned burm_reg:5;
-    unsigned burm_mem:4;
+    unsigned burm_mem:3;
     unsigned burm_imm:1;
     unsigned burm_arglist:3;
     unsigned burm_argend:1;

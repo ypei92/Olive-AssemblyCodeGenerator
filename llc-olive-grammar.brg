@@ -206,7 +206,7 @@ static ActiveNode *ActiveNodeHead = new ActiveNode;
 void expireOldIntervals(int cur_point) {
     ActiveNode *p = ActiveNodeHead->next;
     while(p != NULL){
-        if( p->End > cur_point ) 
+        if( p->End >= cur_point ) 
             break;
         p = p->next;
     }
@@ -864,9 +864,8 @@ reg:    LOAD(LOAD(mem))
         $action[3](0);
 
         //printf("    movq %d(%%rbp), %%%d\n", $3->val, RegCounter);
-        //printf("failded here2\n");
         //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
-       int tar = RegAllocation($0->LR->start, $0->LR->end);
+        int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
         //printActiveNodeList();
 
@@ -919,19 +918,6 @@ mem:    ADD(reg, mem)
         printf("    addq %s, %d(%%rbp)\n", Regs[$2->val], $3->val);
 
         $0->val = $3->val;
-        $0->valtype = meM;
-    };
-
-mem:    ADD(reg, LOAD(LOAD(mem)))
-    { $cost[0].cost=$cost[2].cost+$cost[5].cost+1; }
-    = {
-
-        $action[2](0);
-        $action[5](0);
-
-        printf("    addq %s, %d(%%rbp)\n", Regs[$2->val], $5->val);
-
-        $0->val = $5->val;
         $0->valtype = meM;
     };
 
@@ -1047,8 +1033,9 @@ arglist:    MERGE(reg, arglist)
             printf("    movq %s, %s\n",Regs[$2->val], Regs[$3->val]);
         }
         else {
-            printf("    movq %d(%%rbp), %%rax\n", $2->val);
-            printf("    movq %%rax, %d(%%rsp)\n", 8*($3->val-5));
+            printf("    pushq %s\n", Regs[$3->val]);
+            //printf("    movq %d(%%rbp), %%rax\n", $2->val);
+            //printf("    movq %%rax, %d(%%rsp)\n", 8*($3->val-5));
         }
 
         $0->val = $3->val+1;
@@ -1069,8 +1056,9 @@ arglist:    MERGE(LOAD(mem), arglist)
             printf("    movq %d(%%rbp), %s\n", $3->val, Regs[$4->val]);
         }
         else{
-            printf("    movq %d(%%rbp), %%rax\n", $3->val);
-            printf("    movq %%rax, %d(%%rsp)\n", 8*($4->val-5));
+            printf("    pushq %d(%%rbp)\n", $3->val);
+            //printf("    movq %d(%%rbp), %%rax\n", $3->val);
+            //printf("    movq %%rax, %d(%%rsp)\n", 8*($4->val-5));
         }
         $0->val = $4->val+1;
         $0->valtype = arglisT;

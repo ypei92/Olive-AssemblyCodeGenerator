@@ -396,10 +396,12 @@ bool addRangeIfLive(Value *Operand, LiveTable* LT, InstMap* IM){
     for(int i = 0; i < NumVars; i++){
         if(LR[i].live){
             if(LR[i].end < bbend){
+                errs() << "here";
                 changed = true;
                 LR[i].end = bbend;
             }
             if(LR[i].start > bbstart){
+                errs() << "there";
                 LR[i].start = bbstart;
                 changed = true;
             }
@@ -443,7 +445,7 @@ bool addRange(Value* operand, Instruction * I, LiveTable* LT, SymbolTable* ST){
         }
         //errs() << " found symboltable: " << opd_ID << " " << I_ID << "\n";
     }
-    else if( LR[opd_ID].end < I_ID){
+    else if((opd_ID != -1) && LR[opd_ID].end < I_ID){
         LR[opd_ID].end = I_ID;
         LR[opd_ID].live = true; 
         changed = true;
@@ -553,7 +555,11 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
             if(arg.getArgNo() < 6)
                 addArg2SymbolTable(ST,(Value* ) &arg, arg.getArgNo() + 1);
             else
-                addArg2SymbolTable(ST,(Value* ) &arg, 8* (arg.getArgNo() - 5));
+            {
+                
+                addArg2SymbolTable(ST,(Value* ) &arg, 8* (f.getArgumentList().size() - arg.getArgNo()+1) );
+
+            }
         }
         for(auto &bb:f.getBasicBlockList())
             for( auto &I: bb.getInstList()) {
@@ -573,7 +579,8 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                     errs() << "  operand value = " <<operand << " " 
                            << "  name = " << operand->getName() << "\n";
                     errs() << "  ";
-                    operand->print(errs());
+                    if(!isa<Function>(*operand))
+                        operand->print(errs());
                     errs()<<'\n';
                 } 
                 Tree t = tree(I.getOpcode(), 0, 0, ST);
@@ -831,7 +838,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
             changed = false;
             auto& bbList = f.getBasicBlockList();
             for(auto bb = bbList.rbegin(); bb != bbList.rend() ,i >= 0; i--, bb++){
-                //errs() << "basic block: " << NumBB - 1 - i << "\n";
+                errs() << "basic block: " << NumBB - 1 - i << "\n";
                 
                 BasicBlock* B = &*bb;
                 for(auto bb_succ = succ_begin(B); bb_succ!= succ_end(B); bb_succ++){
@@ -839,26 +846,37 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                     changed |= LiveUnion(B, B_succ, LiveIn, NumBB); 
                 }
                 auto& instList = B->getInstList();
-                //errs() << "changed before before: " << changed << '\n';
+                errs() << "changed before before: " << changed << '\n';
                 for(auto I = instList.begin(), E = instList.end(); I != E; I++){
                     changed |= addRangeIfLive(&*I, &(LiveIn[i]), IM);
+                    if(changed) errs() << "1" ;
                 }
-                //errs() << "changed before:" << changed << '\n';
+                errs() << "changed before:" << changed << '\n';
                 for(auto I = instList.rbegin() , E = instList.rend(); I != E; I++){
                     changed |= setStart(&*I, &(LiveIn[i]));
                     //errs() << I->getOpcode() << '\n';
                     //LiveIn[0].LR[0].v->print(errs());
-                    //errs() << "changed mid: " << changed << '\n';
+                    errs() << "changed mid: " << changed << '\n';
                     for(int j = 0; j < I->getNumOperands(); j++){
                         Value* operand = I->getOperand(j);
                         changed |= addRange(operand, &*I, &(LiveIn[i]), ST);
                     }
-                    //errs() << "changed after: "<< changed <<'\n';
+                    errs() << "changed after: "<< changed <<'\n';
+                }
+                if(i != 0){
+                    for(int k = 0; k < LiveIn[i].NumVars; k++)
+                        LiveIn[i - 1].LR[k].live = LiveIn[i].LR[k].live;
+
+                }
+                else{
+                    for(int k = 0; k < LiveIn[i].NumVars; k++)
+                        LiveIn[NumBB - 1].LR[k].live = LiveIn[i].LR[k].live;
+
+
                 }
             }
             //errs() << changed <<'\n';
-            
-            //printLR(LiveIn[0].LR, LiveIn[0].NumVars);
+            printLR(LiveIn[0].LR, LiveIn[0].NumVars);
         }
         while(changed);
         i = 0;
