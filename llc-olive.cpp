@@ -165,10 +165,10 @@ bool mergeTree(TreeList* &TL, Tree root, Tree t){//merge two children
             removeTree(TL, root);
             return true;
         }
-        else if(t->I->getOperand(0)->getType()->isIntegerTy()){
+        else if((t->I) && t->I->getNumOperands() && t->I->getOperand(0)->getType()->isIntegerTy()){
+            ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
             if(CI) {
-                ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
-                Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996  
+                Tree imm_l = tree(996, 0, 0, t->ST);//#define IMM 996  
                 t->kids[0] = imm_l;
                             //errs() << "store left\n";
                 errs() << "CI exists!\n";
@@ -204,10 +204,10 @@ bool mergeTreeLeft(TreeList* &TL, Tree root, Tree t, Value* operand){//only merg
         removeTree(TL, root);
         return true;
     }
-    else if(t->I->getOperand(0)->getType()->isIntegerTy()){
-        if(CI) {
+    else if((t->I) && t->I->getNumOperands() && t->I->getOperand(0)->getType()->isIntegerTy()){
         ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
-        Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996  
+        if(CI) {
+        Tree imm_l = tree(996, 0, 0, t->ST);//#define IMM 996  
         t->kids[0] = imm_l;
                             //errs() << "store left\n";
         errs() << "CI exists!\n";
@@ -243,10 +243,10 @@ bool mergeTreeRight(TreeList* &TL, Tree root, Tree t, Value* operand){//only mer
         removeTree(TL, root);
         return true;
     }
-    else if(t->I->getOperand(0)->getType()->isIntegerTy()){
-        if(CI) {
+    else if( (t->I) && t->I->getNumOperands() && t->I->getOperand(0)->getType()->isIntegerTy()){
         ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
-        Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996  
+        if(CI) {
+        Tree imm_l = tree(996, 0, 0, t->ST);//#define IMM 996  
         t->kids[0] = imm_l;
                             //errs() << "store left\n";
         errs() << "CI exists!\n";
