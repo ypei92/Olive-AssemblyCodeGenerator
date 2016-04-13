@@ -14,4 +14,5 @@ int main()
     long long c = a + *p;
     long long d = *q + b;
     long long e = (*q)+(*p);
+    return 0;
 }

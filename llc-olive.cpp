@@ -12,7 +12,8 @@ OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
 static cl::opt<unsigned int>
 NumofRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(16));
-int NumRegs;
+int NumRegs, GlobalLength;
+long long int GlobalArray[100];
 
 std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string> &InputFilename, LLVMContext &Context);
 
@@ -76,7 +77,7 @@ void addSymbolTable(SymbolTable* &ST, Value* value){
     SymbolTable* p = new SymbolTable;
     p->v = value;
     p->next = ST;
-     
+    p->M = p->next->M; 
     errs() << "value:" << INT_SIZE << '\n';
         //(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';//value->getType()->getPrimitiveSizeInBits() << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
     if(ST->addrCount > 0) 
@@ -95,6 +96,7 @@ void addArg2SymbolTable(SymbolTable* &ST, Value* value, int n){
     SymbolTable* p = new SymbolTable;
     p->v = value;
     p->next = ST;
+    p->M = p->next->M;
     //errs() << "value:" << n << '\n';
     p->addrCount = n;// #define size_int 4
     ST = p;
@@ -107,6 +109,16 @@ bool findSymbolTable(SymbolTable *ST, Value* val, Tree t){
                 t->op = 998;//#define ARG 998
             return true;
         }
+    }
+    Module* M = ST->M;
+    int i = 0;
+    for(auto& globalVar : M->getGlobalList()){
+        if(val == &globalVar){
+            t->op = 994;
+            t->val = i;
+            return true;
+        }
+        i++;
     }
     return false;
 }
@@ -457,6 +469,20 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
     printf("    .text\n");
+    GlobalLength = 0;
+    
+    for(auto &globalVar: M->getGlobalList()){
+        Instruction * temp = (Instruction *) &globalVar;
+        if(globalVar.hasInitializer() && temp->getNumOperands()){
+            ConstantInt *CI = dyn_cast<ConstantInt> (temp->getOperand(0));
+            GlobalArray[GlobalLength] = CI->getSExtValue();
+        }
+        else
+            GlobalArray[GlobalLength] = 0;
+        errs() << GlobalArray[GlobalLength] << '\n';
+        GlobalLength++;
+    }
+    errs() << "num of global var: " << GlobalLength++ << '\n';
     for(auto &f:M->getFunctionList()){
       
         int NumInst = 0, NumBB = 0;
@@ -502,7 +528,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         }
             
         TreeList* TL = new TreeList;
-        SymbolTable* ST = new SymbolTable;
+        SymbolTable* ST = new SymbolTable(&*M);
         int instCount = -1;
         for(auto &arg: f.getArgumentList()){
             if(arg.getArgNo() < 6)
@@ -613,6 +639,12 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                     }
                     case 54: { // #define call 54
                         Tree tmp = t;
+                        if(strcmp(I.getOperand(I.getNumOperands() - 1)->getName().data() , "printf") == 0){
+                            t->op = 993; //#define printf 993
+                            Value* operand = I.getOperand(0); 
+                            mergeTreeListLeft(TL, operand, t);
+                            break;
+                        }
                         if(I.getNumOperands() > 1){
                             t->kids[0] = tree(997, 0, 0, ST);// #define ARGLIST 997
                             tmp = t->kids[0];

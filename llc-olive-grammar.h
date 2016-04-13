@@ -85,11 +85,17 @@ struct SymbolTable{
     Value* v;
     int addrCount;
     SymbolTable* next;
-
+    Module* M;
     SymbolTable(){
         v = NULL;
         addrCount = 0;
         next = NULL;
+    }
+    SymbolTable(Module* module){
+        v = NULL;
+        addrCount = 0;
+        next = NULL;
+        M = module;
     }
 };
 
