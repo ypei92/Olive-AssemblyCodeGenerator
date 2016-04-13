@@ -12,18 +12,19 @@ OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
 static cl::opt<unsigned int>
 NumofRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(13));
-int NumRegs = NumofRegs;
+int NumRegs, GlobalLength;
+long long int GlobalArray[100];
 
 std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string> &InputFilename, LLVMContext &Context);
 
 
 int main( int argc, char **argv) {
-    errs() << InputFilename << "\n";
     LLVMContext &Context = getGlobalContext();
     cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
+    NumRegs = NumofRegs; 
+    errs() << "NumofRegs: "<< NumRegs << "\n";
     std::unique_ptr<Module> M = makeLLVMModule(InputFilename, Context);
     
-    errs() << "NumofRegs: "<< NumofRegs << "\n";
 //    verifyModule(*Mod, PrintMessageAction);
 
     return 0;
@@ -39,6 +40,7 @@ struct InstMap{
         N = 0;
     }
 };
+
 
 
 struct LiveTable{
@@ -64,7 +66,8 @@ void addSymbolTable(SymbolTable* &ST, Value* value){
         temp = (value->getType()->getPointerElementType()->getIntegerBitWidth())/8;
     else 
         temp = 8; //#define working on 64bit machinev
-    */
+<<<<<<< HEAD
+        */
     if(ST->v == NULL){
         ST->v = value;
         errs() << "value:" <<  INT_SIZE << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
@@ -75,7 +78,7 @@ void addSymbolTable(SymbolTable* &ST, Value* value){
     SymbolTable* p = new SymbolTable;
     p->v = value;
     p->next = ST;
-     
+    p->M = p->next->M; 
     errs() << "value:" << INT_SIZE << '\n';
         //(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';//value->getType()->getPrimitiveSizeInBits() << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
     if(ST->addrCount > 0) 
@@ -94,7 +97,8 @@ void addArg2SymbolTable(SymbolTable* &ST, Value* value, int n){
     SymbolTable* p = new SymbolTable;
     p->v = value;
     p->next = ST;
-    errs() << "value:" << n << '\n';
+    p->M = p->next->M;
+    //errs() << "value:" << n << '\n';
     p->addrCount = n;// #define size_int 4
     ST = p;
 }
@@ -102,10 +106,21 @@ bool findSymbolTable(SymbolTable *ST, Value* val, Tree t){
     for(SymbolTable* temp = ST; temp != NULL; temp = temp->next){
         if(temp->v == val){
             t->val = temp->addrCount;
+            errs() << "find from synmboltable : " << t->val <<'\n';
             if(t->val > 0 && t->val <= 6)
                 t->op = 998;//#define ARG 998
             return true;
         }
+    }
+    Module* M = ST->M;
+    int i = 0;
+    for(auto& globalVar : M->getGlobalList()){
+        if(val == &globalVar){
+            t->op = 994;
+            t->val = i;
+            return true;
+        }
+        i++;
     }
     return false;
 }
@@ -160,11 +175,24 @@ bool mergeTree(TreeList* &TL, Tree root, Tree t){//merge two children
         if((Value *)operand == (Value*) rootI){
             tag = true;
             t->kids[i] = root;
-            addTree(TL, t);
+            //addTree(TL, t);
             removeTree(TL, root);
             return true;
         }
+        else if((t->I) && t->I->getNumOperands() && t->I->getOperand(i)->getType()->isIntegerTy()){
+            ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(i));
+            if(CI) {
+                Tree imm = tree(996, 0, 0, t->ST);//#define IMM 996  
+                t->kids[i] = imm;
+                            //errs() << "store left\n";
+                errs() << "CI exists!\n";
+                errs() << CI->getValue() << '\n';
+                imm->val = CI->getSExtValue();
+                return true;
+            }
+        }
     }
+
     if(root->kids[0])
         tag |= mergeTree(TL, root->kids[0], t);
     if(root->kids[1] && !tag)
@@ -186,10 +214,23 @@ bool mergeTreeLeft(TreeList* &TL, Tree root, Tree t, Value* operand){//only merg
     Instruction* rootI = root->I;
     if(operand == (Value*)rootI ){
         t->kids[0] = root;
-        errs() << "yes merge left!" << operand->getName() << root->I->getOpcode() << '\n';
+        //errs() << "yes merge left!" << operand->getName() << root->I->getOpcode() << '\n';
         removeTree(TL, root);
         return true;
     }
+    else if((t->I) && t->I->getNumOperands() && t->I->getOperand(0)->getType()->isIntegerTy()){
+        ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
+        if(CI) {
+        Tree imm_l = tree(996, 0, 0, t->ST);//#define IMM 996  
+        t->kids[0] = imm_l;
+                            //errs() << "store left\n";
+        errs() << "CI exists!\n";
+        errs() << CI->getValue() << '\n';
+        imm_l->val = CI->getSExtValue();
+        return true;
+        }
+    }
+
     if(root->kids[0])
         tag |= mergeTreeLeft(TL, root->kids[0], t, operand);
     if(root->kids[1] && !tag)
@@ -203,7 +244,7 @@ bool mergeTreeListLeft(TreeList* &TL, Value* operand, Tree t){ // only merge 1st
         if(!tag)
             tag |= mergeTreeLeft( TL, temp->tptr, t, operand);       
     }
-    errs() << "yes merge list left!" << operand->getName() << '\n';
+    //errs() << "yes merge list left!" << operand->getName() << '\n';
     return tag;
 }
 
@@ -212,10 +253,24 @@ bool mergeTreeRight(TreeList* &TL, Tree root, Tree t, Value* operand){//only mer
     Instruction* rootI = root->I;
     if(operand == (Value*)rootI ){
         t->kids[1] = root;
-        errs() << "yes merge right!" << operand->getName() << '\n';
+        //errs() << "yes merge right!" << operand->getName() << '\n';
         removeTree(TL, root);
         return true;
     }
+    else if( (t->I) && t->I->getNumOperands() && t->I->getOperand(1)->getType()->isIntegerTy()){
+        ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(1));
+        if(CI) {
+        Tree imm_r = tree(996, 0, 0, t->ST);//#define IMM 996  
+        t->kids[1] = imm_r;
+                            //errs() << "store left\n";
+        errs() << "CI exists!\n";
+        errs() << CI->getValue() << '\n';
+        imm_r->val = CI->getSExtValue();
+        return true;
+        }
+    }
+
+
     if(root->kids[0])
         tag |= mergeTreeRight(TL, root->kids[0], t, operand);
     if(root->kids[1] && !tag)
@@ -226,14 +281,16 @@ bool mergeTreeRight(TreeList* &TL, Tree root, Tree t, Value* operand){//only mer
 bool mergeTreeListRight(TreeList* &TL, Value* operand, Tree t){ // only merge 2nd children
     bool tag = false;
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        errs() << "merge tree right : " << tag << '\n';
         if(!tag)
             tag |= mergeTreeRight( TL, temp->tptr, t, operand);       
-    } 
+    }
     return tag;
 }
 
 void printTree(Tree t, int depth){
     errs() << depth << ' '<< t->op << ' ';
+    if(t->LR) errs() << "LR : " << t->LR->start << " "<< t->LR->end << " ";
     if(t->op < 500){
         if(!(t->op == 30 && !(t->I))){
             errs() << t->I->getOpcodeName() << ' ';
@@ -262,6 +319,7 @@ void printLR(LiveRange* LR, int n){
 }
 
 void printGlobalEntry() {
+    int i = 0;
     printf("\n");
     printf("    .global main\n");
     printf("main:\n");
@@ -274,6 +332,14 @@ void printGlobalEntry() {
 
     printf("\n");
     printf("    .data\n");
+    for(i = 0 ; i < GlobalLength; ++i) {
+        printf("g_%d:\n", i);
+        printf("    .quad   %d\n", GlobalArray[i]);
+        printf("    .size   g_%d, 8\n\n", i);
+    }
+    printf(".prt:\n");
+    printf("    .asciz  \"%%lld\\n\"\n", GlobalArray[i]);
+    printf("    .size   .ptr, 6\n\n");
     // traverse the table for global value
     // for printf("g_%s: .qual 0\n", g->val);
 }
@@ -281,7 +347,7 @@ void printGlobalEntry() {
 void printTreeList(TreeList* TL, LiveRange* LR, int n){
     errs() << "this is the output\n";
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
-        //printTree(temp->tptr, 0);
+        printTree(temp->tptr, 0);
         //errs() << temp->tptr->op <<'\n';
         gen(temp->tptr);
         //errs()<<"\n";
@@ -415,6 +481,26 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
     printf("    .text\n");
+    GlobalLength = 0;
+    auto& globalList = M->getGlobalList();
+    errs() << globalList.size() << '\n';
+    for(auto &globalVar: M->getGlobalList()){
+        Instruction * temp = (Instruction *) &globalVar;
+        temp->print(errs());
+        if(globalVar.hasInitializer() && temp->getNumOperands()){
+            ConstantInt *CI = dyn_cast<ConstantInt> (temp->getOperand(0));
+            if(CI){
+                GlobalArray[GlobalLength] = CI->getSExtValue();
+                GlobalLength++;
+            }
+
+        }
+        else
+            GlobalArray[GlobalLength] = 0;
+        errs() << GlobalArray[GlobalLength] << '\n';
+    }
+    errs() << "num of global var: " << GlobalLength << '\n';
+    errs() << "num if functions : " << M->getFunctionList().size() << '\n';
     for(auto &f:M->getFunctionList()){
       
         int NumInst = 0, NumBB = 0;
@@ -424,6 +510,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         for(auto &bb : f.getBasicBlockList()){
             NumBB++;
         }
+        if(NumInst == 0) continue;
         LiveTable* LiveIn  = new LiveTable [NumBB];//LiveIn[a] get live in of BacisBlock a
         InstMap* IM = new InstMap [NumInst];
         int j = 0;
@@ -460,7 +547,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         }
             
         TreeList* TL = new TreeList;
-        SymbolTable* ST = new SymbolTable;
+        SymbolTable* ST = new SymbolTable(&*M);
         int instCount = -1;
         for(auto &arg: f.getArgumentList()){
             if(arg.getArgNo() < 6)
@@ -493,7 +580,6 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 t->I = &I;
 
                 t->LR = &(LiveIn[0].LR[instCount]);
-
                 if(I.getOpcode() != 29)
                     addTree(TL ,t);
                 switch(I.getOpcode()){
@@ -524,7 +610,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
                             Tree imm_l = tree(999, 0, 0, ST);//#define OFFSET 999
                             t->kids[0] = imm_l;
-                            errs() << "store left\n";
+                            //errs() << "store left\n";
                             if(CI) {
                                 errs() << "CI exists!\n";
                                 errs() << CI->getValue() << '\n';
@@ -572,6 +658,13 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                     }
                     case 54: { // #define call 54
                         Tree tmp = t;
+                        if(strcmp(I.getOperand(I.getNumOperands() - 1)->getName().data() , "printf") == 0){
+                            errs() << " isprintf \n"; 
+                            t->op = 993; //#define printf 993
+                            Value* operand = I.getOperand(1); 
+                            mergeTreeListLeft(TL, operand, t);
+                            break;
+                        }
                         if(I.getNumOperands() > 1){
                             t->kids[0] = tree(997, 0, 0, ST);// #define ARGLIST 997
                             tmp = t->kids[0];
@@ -596,7 +689,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
                             Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996
                             t->kids[0] = imm_l;
-                            errs() << "store left\n";
+                            //errs() << "store left\n";
                             if(CI) {
                                 errs() << "CI exists!\n";
                                 errs() << CI->getValue() << '\n';
@@ -647,7 +740,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(0));
                             Tree imm_l = tree(996, 0, 0, ST);//#define IMM 996
                             t->kids[0] = imm_l;
-                            errs() << "store left\n";
+                            //errs() << "store left\n";
                             if(CI) {
                                 errs() << "CI exists!\n";
                                 errs() << CI->getValue() << '\n';
@@ -680,7 +773,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             ConstantInt* CI = dyn_cast<ConstantInt>(t->I->getOperand(1));
                             Tree imm_r = tree(996, 0, 0, ST);//#define IMM 996
                             t->kids[1] = imm_r;
-                            errs() << "store right\n";
+                            //errs() << "store right\n";
                             if(CI) {
                                 errs() << "CI exists!\n";
                                 errs() << CI->getValue() << '\n';
@@ -717,13 +810,12 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             case ICmpInst::ICMP_EQ: t->val = 5; break;
                             default: errs() << "unknown predicate of cmp\n"; break;
                         }
+                        //reverse
                         Tree temp;
                         temp = t->kids[0];
                         t->kids[0] = t->kids[1];
                         t->kids[1] = temp;
-
-
-                        break;
+                        break; 
 
                     }
                     default: errs() << "unknown operation\n";break;
@@ -764,7 +856,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                     //errs() << "changed after: "<< changed <<'\n';
                 }
             }
-            errs() << changed <<'\n';
+            //errs() << changed <<'\n';
             
             //printLR(LiveIn[0].LR, LiveIn[0].NumVars);
         }
@@ -783,7 +875,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
             }
         }
         
-
+        
         printTreeList(TL, LiveIn[0].LR, LiveIn[0].NumVars);
         delete TL;
         delete ST;

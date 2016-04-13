@@ -69,8 +69,9 @@ static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx",
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
 extern int GlobalLength;
-extern int GlobalArray[100];
+extern long long GlobalArray[100];
 static int LocalVarStack = 0;
+static int AliasArgReg = 0;
 
 struct LiveRange{
     Value *v;
@@ -89,11 +90,17 @@ struct SymbolTable{
     Value* v;
     int addrCount;
     SymbolTable* next;
-
+    Module* M;
     SymbolTable(){
         v = NULL;
         addrCount = 0;
         next = NULL;
+    }
+    SymbolTable(Module* module){
+        v = NULL;
+        addrCount = 0;
+        next = NULL;
+        M = module;
     }
 };
 
@@ -397,7 +404,7 @@ int RegAllocation(int start, int end) {
     expireOldIntervals(start);
 
     if( NumNodes == NumRegs) {
-        //spill
+        //never spill in our program.....
     }
     else {
         for(i = NumRegs-1; i >= 0  ; i--)
@@ -464,7 +471,7 @@ struct burm_state {
   struct {
     unsigned burm_stmt:2;
     unsigned burm_reg:5;
-    unsigned burm_mem:3;
+    unsigned burm_mem:4;
     unsigned burm_imm:1;
     unsigned burm_arglist:3;
     unsigned burm_argend:1;

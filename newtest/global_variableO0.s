@@ -14,6 +14,7 @@ main:                                   # @main
 	movq	%rsp, %rbp
 .Ltmp2:
 	.cfi_def_cfa_register %rbp
+	subq	$32, %rsp
 	movq	$2, -24(%rbp)
 	movq	$3, -16(%rbp)
 	movq	$4, -8(%rbp)
@@ -23,7 +24,20 @@ main:                                   # @main
 	addq	%rax, e(%rip)
 	movq	-8(%rbp), %rax
 	addq	%rax, f(%rip)
+	movq	d(%rip), %rsi
+	movl	$.L.str, %edi
 	xorl	%eax, %eax
+	callq	printf
+	movq	e(%rip), %rsi
+	movl	$.L.str, %edi
+	xorl	%eax, %eax
+	callq	printf
+	movq	f(%rip), %rsi
+	movl	$.L.str, %edi
+	xorl	%eax, %eax
+	callq	printf
+	xorl	%eax, %eax
+	addq	$32, %rsp
 	popq	%rbp
 	retq
 .Lfunc_end0:
@@ -51,6 +65,12 @@ e:
 f:
 	.quad	40                      # 0x28
 	.size	f, 8
+
+	.type	.L.str,@object          # @.str
+	.section	.rodata.str1.1,"aMS",@progbits,1
+.L.str:
+	.asciz	"%lld\n"
+	.size	.L.str, 6
 
 
 	.ident	"clang version 3.9.0 "

@@ -64,7 +64,7 @@ static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx",
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
 extern int GlobalLength;
-extern int GlobalArray[100];
+extern long long GlobalArray[100];
 static int LocalVarStack = 0;
 static int AliasArgReg = 0;
 
@@ -85,11 +85,17 @@ struct SymbolTable{
     Value* v;
     int addrCount;
     SymbolTable* next;
-
+    Module* M;
     SymbolTable(){
         v = NULL;
         addrCount = 0;
         next = NULL;
+    }
+    SymbolTable(Module* module){
+        v = NULL;
+        addrCount = 0;
+        next = NULL;
+        M = module;
     }
 };
 
@@ -659,7 +665,6 @@ reg:    RET(globalvar)
 reg:    CALL(arglist)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         if( $0->val != 0 )
             $action[2](0);
@@ -681,7 +686,6 @@ reg:    CALL(arglist)
 reg:    PRINTF(reg)
 { $cost[0].cost=$cost[2].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         printf("    movq %s, %%rsi\n", Regs[$2->val]);
         printf("    movq $.prt, %%rdi\n");
@@ -695,9 +699,21 @@ reg:    PRINTF(reg)
 reg:    PRINTF(LOAD(mem))
 { $cost[0].cost=$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
-        printf("    movq %d(%%rbp), %%rsi\n", $2->val);
+        printf("    movq %d(%%rbp), %%rsi\n", $3->val);
+        printf("    movq $.prt, %%rdi\n");
+        printf("    xorq %rax, %rax\n");
+        printf("    callq printf\n");
+
+        $0->val = 0;
+        $0->valtype = reG;
+    };
+
+reg:    PRINTF(LOAD(globalvar))
+{ $cost[0].cost=$cost[3].cost+1; }
+    = {
+
+        printf("    movq g_%d(%%rip), %%rsi\n", $3->val);
         printf("    movq $.prt, %%rdi\n");
         printf("    xorq %rax, %rax\n");
         printf("    callq printf\n");
@@ -709,7 +725,6 @@ reg:    PRINTF(LOAD(mem))
 reg:    ADD(reg, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -724,7 +739,6 @@ reg:    ADD(reg, reg)
 reg:    ADD(imm, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -738,7 +752,6 @@ reg:    ADD(imm, reg)
 reg:    ADD(mem, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -752,7 +765,6 @@ reg:    ADD(mem, reg)
 reg:    ADD(globalvar, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -766,7 +778,6 @@ reg:    ADD(globalvar, reg)
 reg:    ADD(LOAD(mem), reg)
     { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[3](0);
         $action[4](0);
@@ -780,7 +791,6 @@ reg:    ADD(LOAD(mem), reg)
 reg:   CMP(reg, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -790,13 +800,12 @@ reg:   CMP(reg, reg)
 reg:    LOAD(reg)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
-        printActiveNodeList();
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -805,13 +814,26 @@ reg:    LOAD(reg)
 reg:    LOAD(globalvar)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq g_%d(%%rip), %s\n", $2->val, Regs[tar]);
-        printActiveNodeList();
+        //printActiveNodeList();
+
+        $0->val = tar;
+        $0->valtype = reG;
+    };
+
+reg:   LOAD(LOAD(globalvar))
+    { $cost[0].cost=$cost[3].cost+1; }
+    = {
+
+        $action[3](0);
+
+        int tar = RegAllocation($0->LR->start, $0->LR->end);
+        printf("    movq g_%d(%%rip), %s\n", $3->val, Regs[tar]);
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -820,7 +842,6 @@ reg:    LOAD(globalvar)
 reg:    LOAD(mem)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
 
@@ -830,7 +851,7 @@ reg:    LOAD(mem)
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
-        printActiveNodeList();
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -839,13 +860,15 @@ reg:    LOAD(mem)
 reg:    LOAD(LOAD(mem))
     { $cost[0].cost=$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
         
         $action[3](0);
 
-        int tar = RegAllocation($0->LR->start, $0->LR->end);
+        //printf("    movq %d(%%rbp), %%%d\n", $3->val, RegCounter);
+        //printf("failded here2\n");
+        //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
+       int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
-        printActiveNodeList();
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -854,13 +877,12 @@ reg:    LOAD(LOAD(mem))
 reg:    LOAD(LOAD(LOAD(mem)))
     { $cost[0].cost=$cost[4].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[4](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $4->val, Regs[tar]);
-        printActiveNodeList();
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -869,7 +891,6 @@ reg:    LOAD(LOAD(LOAD(mem)))
 reg:    ARG
     { $cost[0].cost = 0; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $0->val = -1;
     };
@@ -877,7 +898,6 @@ reg:    ARG
 globalvar: ADD(reg, globalvar)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -892,7 +912,6 @@ globalvar: ADD(reg, globalvar)
 mem:    ADD(reg, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[3](0);
@@ -906,7 +925,6 @@ mem:    ADD(reg, mem)
 mem:    ADD(reg, LOAD(LOAD(mem)))
     { $cost[0].cost=$cost[2].cost+$cost[5].cost+1; }
     = {
-        if($0->marked) return; $0->marked = true;
 
         $action[2](0);
         $action[5](0);
@@ -956,6 +974,18 @@ mem:    STORE(ARG, mem)
         $0->valtype = meM;
     }; 
 
+mem:    STORE(reg, globalvar)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        printf("    movq %s, g_%d(%%rip)\n", Regs[$2->val], $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = globalvaR;
+    };
+
 mem:    STORE(mem, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
@@ -1000,7 +1030,7 @@ globalvar:    STORE(reg, globalvar)
         printf("    movq %s, g_%d(%%rip)\n", Regs[$2->val], $3->val);
 
         $0->val = $3->val;
-        $0->valtype = globalvar;
+        $0->valtype = globalvaR;
     };
 
 arglist:    MERGE(reg, arglist)
@@ -1009,12 +1039,13 @@ arglist:    MERGE(reg, arglist)
         $action[2](0);
         $action[3](0);
 
-        if( $3->val < 6 )
+        if( $3->val < 6 ){
             if( IfRegAvailable[0] == 0 ) {
                 AliasArgReg ++;
                 printf("    pushq %s\n", Regs[$3->val]);
             }
             printf("    movq %s, %s\n",Regs[$2->val], Regs[$3->val]);
+        }
         else {
             printf("    movq %d(%%rbp), %%rax\n", $2->val);
             printf("    movq %%rax, %d(%%rsp)\n", 8*($3->val-5));
@@ -1030,12 +1061,13 @@ arglist:    MERGE(LOAD(mem), arglist)
         $action[3](0);
         $action[4](0);
 
-        if( $4->val < 6 )
+        if( $4->val < 6 ){
             if( IfRegAvailable[0] == 0 ) {
                 AliasArgReg ++;
                 printf("    pushq %s\n", Regs[$4->val]);
             }
             printf("    movq %d(%%rbp), %s\n", $3->val, Regs[$4->val]);
+        }
         else{
             printf("    movq %d(%%rbp), %%rax\n", $3->val);
             printf("    movq %%rax, %d(%%rsp)\n", 8*($4->val-5));

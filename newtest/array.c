@@ -13,4 +13,5 @@ int main()
     d[1] = b;
     d[2] = a+b;
     d[3] = a-b;
+    return 0;
 }

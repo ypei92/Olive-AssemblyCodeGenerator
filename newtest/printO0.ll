@@ -7,9 +7,11 @@ target triple = "x86_64-unknown-linux-gnu"
 ; Function Attrs: nounwind uwtable
 define i32 @main() #0 {
 entry:
+  %retval = alloca i32, align 4
   %a = alloca i64, align 8
   %b = alloca i64, align 8
   %c = alloca i64, align 8
+  store i32 0, i32* %retval, align 4
   store i64 0, i64* %a, align 8
   store i64 2, i64* %b, align 8
   %0 = load i64, i64* %a, align 8

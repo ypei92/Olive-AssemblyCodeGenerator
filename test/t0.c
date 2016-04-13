@@ -1,16 +1,18 @@
 #include "stdio.h"
 #include "stdlib.h"
 
+long long int c = 10;
+
 int main()
 {
-    int a = 0;
-    int b;
-
+    long long int a = 0;
+    long long int b;
+    
     b = 2;
 
-    int c = a+b;
-    int d = c+a;
-    int e = c+b;
+    c = a+b;
+    long long int d = c+a;
+    const long long int e = c+b;
 
-    //printf("%d %d %d\n", c, d, e);
+    //printf("%lld\n", c);
 }
