@@ -9,7 +9,7 @@ int main()
     long long c = 0;
 
     if( a > b )
-        c = a*b;
+        c = b;
     else
-        c = a+b;
+        c = a;
 }

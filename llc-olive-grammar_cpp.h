@@ -112,14 +112,15 @@ short *burm_nts[] = {
   burm_nts_6,  /* 22 */
   burm_nts_10,  /* 23 */
   burm_nts_6,  /* 24 */
-  burm_nts_11,  /* 25 */
-  burm_nts_3,  /* 26 */
-  burm_nts_12,  /* 27 */
-  burm_nts_13,  /* 28 */
-  burm_nts_14,  /* 29 */
-  burm_nts_15,  /* 30 */
-  burm_nts_3,  /* 31 */
+  burm_nts_2,  /* 25 */
+  burm_nts_11,  /* 26 */
+  burm_nts_3,  /* 27 */
+  burm_nts_12,  /* 28 */
+  burm_nts_13,  /* 29 */
+  burm_nts_14,  /* 30 */
+  burm_nts_15,  /* 31 */
   burm_nts_3,  /* 32 */
+  burm_nts_3,  /* 33 */
 };
 
 char burm_arity[] = {
@@ -180,17 +181,18 @@ std::string burm_string[] = {
   /* 19 */  "reg: LOAD(LOAD(LOAD(mem)))",
   /* 20 */  "reg: ARG",
   /* 21 */  "mem: ADD(reg,mem)",
-  /* 22 */  "mem: ADD(reg,LOAD(mem))",
+  /* 22 */  "mem: ADD(reg,LOAD(LOAD(mem)))",
   /* 23 */  "mem: STORE(imm,mem)",
   /* 24 */  "mem: STORE(reg,mem)",
-  /* 25 */  "mem: STORE(mem,mem)",
-  /* 26 */  "mem: OFFSET",
-  /* 27 */  "arglist: MERGE(reg,arglist)",
-  /* 28 */  "arglist: MERGE(LOAD(mem),arglist)",
-  /* 29 */  "arglist: MERGE(reg,argend)",
-  /* 30 */  "arglist: MERGE(LOAD(mem),argend)",
-  /* 31 */  "argend: ARGEND",
-  /* 32 */  "imm: IMM",
+  /* 25 */  "mem: STORE(ARG,mem)",
+  /* 26 */  "mem: STORE(mem,mem)",
+  /* 27 */  "mem: OFFSET",
+  /* 28 */  "arglist: MERGE(reg,arglist)",
+  /* 29 */  "arglist: MERGE(LOAD(mem),arglist)",
+  /* 30 */  "arglist: MERGE(reg,argend)",
+  /* 31 */  "arglist: MERGE(LOAD(mem),argend)",
+  /* 32 */  "argend: ARGEND",
+  /* 33 */  "imm: IMM",
 };
 
 
@@ -234,42 +236,44 @@ int burm_file_numbers[] = {
   /* 30 */  0,
   /* 31 */  0,
   /* 32 */  0,
+  /* 33 */  0,
 };
 
 int burm_line_numbers[] = {
-  /* 0 */  442,
-  /* 1 */  449,
-  /* 2 */  472,
-  /* 3 */  495,
-  /* 4 */  503,
-  /* 5 */  527,
-  /* 6 */  551,
-  /* 7 */  575,
-  /* 8 */  588,
-  /* 9 */  601,
-  /* 10 */  614,
-  /* 11 */  631,
-  /* 12 */  644,
-  /* 13 */  656,
-  /* 14 */  668,
-  /* 15 */  680,
-  /* 16 */  688,
-  /* 17 */  701,
-  /* 18 */  719,
-  /* 19 */  734,
-  /* 20 */  748,
-  /* 21 */  754,
-  /* 22 */  766,
-  /* 23 */  779,
-  /* 24 */  792,
-  /* 25 */  804,
-  /* 26 */  817,
-  /* 27 */  823,
-  /* 28 */  838,
-  /* 29 */  854,
-  /* 30 */  866,
-  /* 31 */  878,
-  /* 32 */  884,
+  /* 0 */  443,
+  /* 1 */  450,
+  /* 2 */  481,
+  /* 3 */  512,
+  /* 4 */  525,
+  /* 5 */  549,
+  /* 6 */  573,
+  /* 7 */  597,
+  /* 8 */  610,
+  /* 9 */  623,
+  /* 10 */  636,
+  /* 11 */  653,
+  /* 12 */  666,
+  /* 13 */  678,
+  /* 14 */  690,
+  /* 15 */  702,
+  /* 16 */  710,
+  /* 17 */  724,
+  /* 18 */  742,
+  /* 19 */  755,
+  /* 20 */  767,
+  /* 21 */  773,
+  /* 22 */  785,
+  /* 23 */  798,
+  /* 24 */  810,
+  /* 25 */  824,
+  /* 26 */  836,
+  /* 27 */  849,
+  /* 28 */  855,
+  /* 29 */  870,
+  /* 30 */  887,
+  /* 31 */  899,
+  /* 32 */  911,
+  /* 33 */  917,
 };
 
 #pragma GCC diagnostic push
@@ -312,24 +316,25 @@ static short burm_decode_mem[] = {
   24,
   25,
   26,
+  27,
 };
 
 static short burm_decode_imm[] = {
    -1,
-  32,
+  33,
 };
 
 static short burm_decode_arglist[] = {
    -1,
-  27,
   28,
   29,
   30,
+  31,
 };
 
 static short burm_decode_argend[] = {
    -1,
-  31,
+  32,
 };
 
 static short burm_decode__[] = {
@@ -532,7 +537,7 @@ int burm_cost_code(COST *_c, int _ern,struct burm_state *_s)
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->kids[0]->cost[burm_mem_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->kids[0]->kids[0]->cost[burm_mem_NT].cost+1; 
 }
   break;
   case 23:
@@ -553,52 +558,59 @@ int burm_cost_code(COST *_c, int _ern,struct burm_state *_s)
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_mem_NT].cost+1; 
+ (*_c).cost=_s->kids[1]->cost[burm_mem_NT].cost+1; 
 }
   break;
   case 26:
 {
 
 
- (*_c).cost=0; 
+ (*_c).cost=_s->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_mem_NT].cost+1; 
 }
   break;
   case 27:
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_arglist_NT].cost+1; 
+ (*_c).cost=0; 
 }
   break;
   case 28:
 {
 
 
- (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_arglist_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_arglist_NT].cost+1; 
 }
   break;
   case 29:
 {
 
 
- (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_argend_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_arglist_NT].cost+1; 
 }
   break;
   case 30:
 {
 
 
- (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_argend_NT].cost+1; 
+ (*_c).cost=_s->kids[0]->cost[burm_reg_NT].cost+_s->kids[1]->cost[burm_argend_NT].cost+1; 
 }
   break;
   case 31:
 {
 
 
- (*_c).cost=0; 
+ (*_c).cost=_s->kids[0]->kids[0]->cost[burm_mem_NT].cost+_s->kids[1]->cost[burm_argend_NT].cost+1; 
 }
   break;
   case 32:
+{
+
+
+ (*_c).cost=0; 
+}
+  break;
+  case 33:
 {
 
 
@@ -720,9 +732,11 @@ int indent)
 
 
         llvm::Function* CurFun = _s->node->I->getFunction();
+        llvm::BasicBlock* CurBB = _s->node->I->getParent();
         int LocalVarStore = 0; 
         if( CurFun != PreFun ) {
             PreFun = CurFun;
+            PreBB = CurBB;
             clearActiveNodeList();
             clearSpilledNodeList();
             printf("_Your_%s:\n",CurFun->getName().data());
@@ -731,11 +745,17 @@ int indent)
             if(_s->node->ST!=NULL) {
                 LocalVarStore = _s->node->ST->addrCount;
                 LocalVarStack = LocalVarStore;
-                printf("    subq $%d, %%rsp\n", LocalVarStore);
+                printf("    subq $%d, %%rsp\n", -LocalVarStore);
             }
             else
                 LocalVarStack = 0;
         }
+        
+        if( CurBB != PreBB ) {
+            PreBB = CurBB;
+            printf("\n%s_%s:\n",CurFun->getName().data(), CurBB->getName().data());
+        }
+
         reg_action(_s,0);
     
 }
@@ -746,9 +766,11 @@ int indent)
 
 
         llvm::Function* CurFun = _s->node->I->getFunction();
+        llvm::BasicBlock* CurBB = _s->node->I->getParent();
         int LocalVarStore = 0; 
         if( CurFun != PreFun ) {
             PreFun = CurFun;
+            PreBB = CurBB;
             clearActiveNodeList();
             clearSpilledNodeList();
             printf("_Your_%s:\n",CurFun->getName().data());
@@ -757,11 +779,17 @@ int indent)
             if(_s->node->ST!=NULL) {
                 LocalVarStore = _s->node->ST->addrCount;
                 LocalVarStack = LocalVarStore;
-                printf("    subq $%d, %%rsp\n", LocalVarStore);
+                printf("    subq $%d, %%rsp\n", -LocalVarStore);
             }
             else
                 LocalVarStack = 0;
         }
+
+        if( CurBB != PreBB ) {
+            PreBB = CurBB;
+            printf("\n%s_%s:\n",CurFun->getName().data(), CurBB->getName().data());
+        }
+
         mem_action(_s,0);
     
 }
@@ -786,8 +814,13 @@ int indent)
 
 
         llvm::Function* CurFun = _s->node->I->getFunction();
-        printf("    jmp LABEL\n");
-        printf("%s_LABEL:\n", CurFun->getName().data());
+
+        BasicBlock* opd1 = (BasicBlock*) _s->node->I->getOperand(0);
+        const char* jmplabel = opd1->getName().data();
+        const char* funcname = _s->node->I->getFunction()->getName().data();
+        
+        printf("    jmp %s_%s\n",funcname, jmplabel);
+        //printf("\n%s_%s:\n", funcname, jmplabel);
     
 }
   break;
@@ -800,21 +833,21 @@ int indent)
         reg_action(_s->kids[0]->kids[1],0);
         BasicBlock* opd1 = (BasicBlock*) _s->node->I->getOperand(1);
         BasicBlock* opd2 = (BasicBlock*) _s->node->I->getOperand(2);
-        const char* thenlabel = opd1->getName().data();
-        const char* elselabel = opd2->getName().data();
+        const char* elselabel = opd1->getName().data();
+        const char* thenlabel = opd2->getName().data();
         const char* funcname = _s->node->I->getFunction()->getName().data();
         
         printf("    cmpq %%%d, %%%d\n", _s->kids[0]->kids[0]->node->val, _s->kids[0]->kids[1]->node->val);
         switch(_s->node->val){
-            case SGT:   printf("    jg %s_%s\n", funcname, elselabel);break;
-            case SGE:   printf("    jge %s_%s\n", funcname, elselabel);break;
-            case SLT:   printf("    jl %s_%s\n", funcname, elselabel);break;
-            case SLE:   printf("    jle %s_%s\n", funcname, elselabel);break;
-            case NEQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
-            case EQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case SGT:   printf("    jle %s_%s\n", funcname, elselabel);break;
+            case SGE:   printf("    jl %s_%s\n", funcname, elselabel);break;
+            case SLT:   printf("    jge %s_%s\n", funcname, elselabel);break;
+            case SLE:   printf("    jg %s_%s\n", funcname, elselabel);break;
+            case NEQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case EQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
             default:   printf("    nojump %s_%s \n", funcname, elselabel);break;
         }
-        printf("%s_%s:\n",funcname, thenlabel);
+        //printf("\n%s_%s:\n",funcname, thenlabel);
     
 }
   break;
@@ -827,21 +860,21 @@ int indent)
         reg_action(_s->kids[0]->kids[1],0);
         BasicBlock* opd1 = (BasicBlock*) _s->node->I->getOperand(1);
         BasicBlock* opd2 = (BasicBlock*) _s->node->I->getOperand(2);
-        const char* thenlabel = opd1->getName().data();
-        const char* elselabel = opd2->getName().data();
+        const char* elselabel = opd1->getName().data();
+        const char* thenlabel = opd2->getName().data();
         const char* funcname = _s->node->I->getFunction()->getName().data();
         
         printf("    cmpq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->kids[0]->node->val, _s->kids[0]->kids[1]->node->val);
         switch(_s->node->val){
-            case SGT:   printf("    jg %s_%s\n", funcname, elselabel);break;
-            case SGE:   printf("    jge %s_%s\n", funcname, elselabel);break;
-            case SLT:   printf("    jl %s_%s\n", funcname, elselabel);break;
-            case SLE:   printf("    jle %s_%s\n", funcname, elselabel);break;
-            case NEQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
-            case EQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case SGT:   printf("    jle %s_%s\n", funcname, elselabel);break;
+            case SGE:   printf("    jl %s_%s\n", funcname, elselabel);break;
+            case SLT:   printf("    jge %s_%s\n", funcname, elselabel);break;
+            case SLE:   printf("    jg %s_%s\n", funcname, elselabel);break;
+            case NEQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case EQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
             default:   printf("    nojump %s_%s \n", funcname, elselabel);break;
         }
-        printf("%s_%s:\n",funcname, thenlabel);
+        //printf("\n%s_%s:\n",funcname, thenlabel);
     
 }
   break;
@@ -854,21 +887,21 @@ int indent)
         mem_action(_s->kids[0]->kids[1]->kids[0],0);
         BasicBlock* opd1 = (BasicBlock*) _s->node->I->getOperand(1);
         BasicBlock* opd2 = (BasicBlock*) _s->node->I->getOperand(2);
-        const char* thenlabel = opd1->getName().data();
-        const char* elselabel = opd2->getName().data();
+        const char* elselabel = opd1->getName().data();
+        const char* thenlabel = opd2->getName().data();
         const char* funcname = _s->node->I->getFunction()->getName().data();
         
-        printf("    cmpq %%%d, %d(%%rbp)\n", _s->kids[0]->kids[0]->node->val, _s->kids[0]->kids[1]->kids[0]->node->val);
+        printf("    cmpq %s, %d(%%rbp)\n", Regs[_s->kids[0]->kids[0]->node->val], _s->kids[0]->kids[1]->kids[0]->node->val);
         switch(_s->node->val){
-            case SGT:   printf("    jg %s_%s\n", funcname, elselabel);break;
-            case SGE:   printf("    jge %s_%s\n", funcname, elselabel);break;
-            case SLT:   printf("    jl %s_%s\n", funcname, elselabel);break;
-            case SLE:   printf("    jle %s_%s\n", funcname, elselabel);break;
-            case NEQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
-            case EQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case SGT:   printf("    jle %s_%s\n", funcname, elselabel);break;
+            case SGE:   printf("    jl %s_%s\n", funcname, elselabel);break;
+            case SLT:   printf("    jge %s_%s\n", funcname, elselabel);break;
+            case SLE:   printf("    jg %s_%s\n", funcname, elselabel);break;
+            case NEQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case EQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
             default:   printf("    nojump %s_%s \n", funcname, elselabel);break;
         }
-        printf("%s_%s:\n",funcname, thenlabel);
+        //printf("\n%s_%s:\n",funcname, thenlabel);
     
 }
   break;
@@ -881,7 +914,7 @@ int indent)
         printf("    movq $%d, %%rax\n", _s->kids[0]->node->val);
         printf("    movq %%rbp, %%rsp\n");
         printf("    popq %%rbp\n");
-        printf("    ret\n\n");
+        printf("    retq\n\n");
 
         _s->node->val = _s->kids[0]->node->val;
         _s->node->valtype = imM;
@@ -894,10 +927,10 @@ int indent)
 
 
         reg_action(_s->kids[0],0);
-        printf("    movq %%%d, %%rax\n", _s->kids[0]->node->val);
+        printf("    movq %s, %%rax\n", Regs[_s->kids[0]->node->val]);
         printf("    movq %%rbp, %%rsp\n");
         printf("    popq %%rbp\n");
-        printf("    ret\n\n");
+        printf("    retq\n\n");
 
         _s->node->val = _s->kids[0]->node->val;
         _s->node->valtype = reG;
@@ -913,7 +946,7 @@ int indent)
         printf("    movq %d(%%rbp), %%rax\n", _s->kids[0]->node->val);
         printf("    movq %%rbp, %%rsp\n");
         printf("    popq %%rbp\n");
-        printf("    ret\n");
+        printf("    retq\n\n");
 
         _s->node->val = _s->kids[0]->node->val;
         _s->node->valtype = meM;
@@ -932,7 +965,7 @@ int indent)
         llvm::Value* FunValue = _s->node->I->getOperand(NumOperands - 1);
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
 
-        printf("    call %s\n", FunValue -> getName().data());
+        printf("    callq _Your_%s\n", FunValue -> getName().data());
         printf("    movq %%rax, %s\n", Regs[tar]);
 
         _s->node->val = tar;
@@ -948,7 +981,7 @@ int indent)
         reg_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq %%%d, %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+        printf("    addq %s, %s\n", Regs[_s->kids[0]->node->val], Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -963,7 +996,7 @@ int indent)
         imm_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq $%d, %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+        printf("    addq $%d, %s\n", _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -978,7 +1011,7 @@ int indent)
         mem_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq %d(%%rbp), %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+        printf("    addq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -993,7 +1026,7 @@ int indent)
         mem_action(_s->kids[0]->kids[0],0);
         reg_action(_s->kids[1],0);
 
-        printf("    addq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, _s->kids[1]->node->val);
+        printf("    addq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = reG;
@@ -1007,7 +1040,7 @@ int indent)
 
         reg_action(_s->kids[0],0);
         reg_action(_s->kids[1],0);
-        printf("    cmpq %%%d, %%%d\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+        printf("    cmpq %s, %s\n", Regs[_s->kids[0]->node->val], Regs[_s->kids[1]->node->val]);
     
 }
   break;
@@ -1021,6 +1054,7 @@ int indent)
         // printf("    movq %%%d, %%%d\n", _s->kids[0]->node->val, RegCounter);
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
+        //printActiveNodeList();
 
         _s->node->val = tar;
         _s->node->valtype = reG;
@@ -1038,10 +1072,10 @@ int indent)
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, _s->kids[0]->node->val))
         //insertLoadedMem(name, _s->kids[0]->node->val, RegCounter);
-        printf("failded here\n");
-        printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
+
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
+        //printActiveNodeList();
 
         _s->node->val = tar;
         _s->node->valtype = reG;
@@ -1055,11 +1089,9 @@ int indent)
 
         mem_action(_s->kids[0]->kids[0],0);
 
-        //printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, RegCounter);
-        printf("failded here2\n");
-        printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[tar]);
+        //printActiveNodeList();
 
         _s->node->val = tar;
         _s->node->valtype = reG;
@@ -1072,8 +1104,6 @@ int indent)
 
 
         mem_action(_s->kids[0]->kids[0]->kids[0],0);
-
-        //printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->kids[0]->node->val, RegCounter);
 
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->kids[0]->node->val, Regs[tar]);
@@ -1114,7 +1144,7 @@ int indent)
         reg_action(_s->kids[0],0);
         mem_action(_s->kids[1],0);
 
-        printf("    addq %%%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+        printf("    addq %s, %d(%%rbp)\n", Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = meM;
@@ -1127,11 +1157,11 @@ int indent)
 
 
         reg_action(_s->kids[0],0);
-        mem_action(_s->kids[1]->kids[0],0);
+        mem_action(_s->kids[1]->kids[0]->kids[0],0);
 
-        printf("    addq %%%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->kids[0]->node->val);
+        printf("    addq %s, %d(%%rbp)\n", Regs[_s->kids[0]->node->val], _s->kids[1]->kids[0]->kids[0]->node->val);
 
-        _s->node->val = _s->kids[1]->kids[0]->node->val;
+        _s->node->val = _s->kids[1]->kids[0]->kids[0]->node->val;
         _s->node->valtype = meM;
     
 }
@@ -1159,7 +1189,9 @@ int indent)
         reg_action(_s->kids[0],0);
         mem_action(_s->kids[1],0);
 
-        printf("    movq %%%d, %d(%%rbp)\n", _s->kids[0]->node->val, _s->kids[1]->node->val);
+        if(_s->kids[0]->node->val < 0)
+            printf("report reg = $d\n", _s->kids[0]->node->val);
+        printf("    movq %s, %d(%%rbp)\n", Regs[_s->kids[0]->node->val], _s->kids[1]->node->val);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = meM;
@@ -1171,11 +1203,10 @@ int indent)
 
 
 
-        mem_action(_s->kids[0],0);
         mem_action(_s->kids[1],0);
 
-        printf("    leaq %d(%%rbp), %%rax\n", _s->kids[0]->node->val);    
-        printf("    movq %%rax, %d(%%rbp)\n", _s->kids[1]->node->val);
+        if(_s->kids[0]->node->val <= 6)
+            printf("    movq %s, %d(%%rbp)\n", Regs[_s->kids[0]->node->val-1], _s->kids[1]->node->val);
 
         _s->node->val = _s->kids[1]->node->val;
         _s->node->valtype = meM;
@@ -1183,6 +1214,22 @@ int indent)
 }
   break;
   case 26:
+{
+
+
+
+        mem_action(_s->kids[0],0);
+        mem_action(_s->kids[1],0);
+
+        printf("    movq %d(%%rbp), %%rax\n", _s->kids[0]->node->val);    
+        printf("    movq %%rax, %d(%%rbp)\n", _s->kids[1]->node->val);
+
+        _s->node->val = _s->kids[1]->node->val;
+        _s->node->valtype = meM;
+    
+}
+  break;
+  case 27:
 {
 
 
@@ -1205,7 +1252,7 @@ int indent)
   if(_s->rule.burm_imm==0)
     NO_ACTION(imm);
   switch(_ern){
-  case 32:
+  case 33:
 {
 
 
@@ -1228,7 +1275,7 @@ int indent)
   if(_s->rule.burm_arglist==0)
     NO_ACTION(arglist);
   switch(_ern){
-  case 27:
+  case 28:
 {
 
 
@@ -1236,32 +1283,13 @@ int indent)
         reg_action(_s->kids[0],0);
         arglist_action(_s->kids[1],0);
 
-        if( _s->kids[1]->node->val < 7 )
-            printf("    movq %%%d, %s\n", _s->kids[0]->node->val, ArgRegs[_s->kids[1]->node->val]);
+        if( _s->kids[1]->node->val < 6 )
+            printf("    movq %s, %s\n",Regs[_s->kids[0]->node->val], Regs[_s->kids[1]->node->val]);
         else
-            printf("    movq %%%d, %d(%%rsp)\n", _s->kids[0]->node->val, 8*(_s->kids[1]->node->val-6));
+            printf("    movq %s, %d(%%rsp)\n", Regs[_s->kids[0]->node->val], 8*(_s->kids[1]->node->val-5));
 
         _s->node->val = _s->kids[1]->node->val+1;
         _s->node->valtype = arglisT;
-    
-}
-  break;
-  case 28:
-{
-
-
-
-        mem_action(_s->kids[0]->kids[0],0);
-        arglist_action(_s->kids[1],0);
-
-        if( _s->kids[1]->node->val < 7 )
-            printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, ArgRegs[_s->kids[1]->node->val]);
-        else
-            printf("    movq %d(%%rbp), %d(%%rsp)\n", _s->kids[0]->kids[0]->node->val, 8*(_s->kids[1]->node->val-6));
-
-        _s->node->val = _s->kids[1]->node->val+1;
-        _s->node->valtype = arglisT;
- 
     
 }
   break;
@@ -1270,13 +1298,18 @@ int indent)
 
 
 
-        reg_action(_s->kids[0],0);
-        argend_action(_s->kids[1],0);
+        mem_action(_s->kids[0]->kids[0],0);
+        arglist_action(_s->kids[1],0);
 
-        printf("    movq %%%d, %s\n", _s->kids[0]->node->val, ArgRegs[0]);
-
-        _s->node->val = 1;
+        if( _s->kids[1]->node->val < 6 )
+            printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[_s->kids[1]->node->val]);
+        else{
+            printf("    movq %d(%%rbp), %%rax\n", _s->kids[0]->kids[0]->node->val);
+            printf("    movq %%rax, %d(%%rsp)\n", 8*(_s->kids[1]->node->val-5));
+        }
+        _s->node->val = _s->kids[1]->node->val+1;
         _s->node->valtype = arglisT;
+ 
     
 }
   break;
@@ -1285,10 +1318,25 @@ int indent)
 
 
 
+        reg_action(_s->kids[0],0);
+        argend_action(_s->kids[1],0);
+
+        printf("    movq %%%d, %s\n", _s->kids[0]->node->val, Regs[0]);
+
+        _s->node->val = 1;
+        _s->node->valtype = arglisT;
+    
+}
+  break;
+  case 31:
+{
+
+
+
         mem_action(_s->kids[0]->kids[0],0);
         argend_action(_s->kids[1],0);
 
-        printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, ArgRegs[0]);
+        printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[0]);
 
         _s->node->val = 1;
         _s->node->valtype = arglisT;
@@ -1309,7 +1357,7 @@ int indent)
   if(_s->rule.burm_argend==0)
     NO_ACTION(argend);
   switch(_ern){
-  case 31:
+  case 32:
 {
 
 
@@ -1451,10 +1499,11 @@ burm_trace(burm_np, 7, c);         s->cost[burm_reg_NT] = c ;
     children=GET_KIDS(u);
     for(i=0;i<arity;i++)
       k[i]=burm_label1(children[i]);
-    if (   /* mem: ADD(reg,LOAD(mem)) */
+    if (   /* mem: ADD(reg,LOAD(LOAD(mem))) */
       k[0]->rule.burm_reg && 
       k[1]->op == 5 && 	/* LOAD */
-      k[1]->kids[0]->rule.burm_mem
+      k[1]->kids[0]->op == 5 && 	/* LOAD */
+      k[1]->kids[0]->kids[0]->rule.burm_mem
     ) {
       if(burm_cost_code(&c,22,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
 burm_trace(burm_np, 22, c);         s->cost[burm_mem_NT] = c ;
@@ -1526,8 +1575,8 @@ burm_trace(burm_np, 11, c);         s->cost[burm_reg_NT] = c ;
       k[0]->kids[0]->rule.burm_mem && 
       k[1]->rule.burm_argend
     ) {
-      if(burm_cost_code(&c,30,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
-burm_trace(burm_np, 30, c);         s->cost[burm_arglist_NT] = c ;
+      if(burm_cost_code(&c,31,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 31, c);         s->cost[burm_arglist_NT] = c ;
         s->rule.burm_arglist = 4;
       }
     }
@@ -1535,8 +1584,8 @@ burm_trace(burm_np, 30, c);         s->cost[burm_arglist_NT] = c ;
       k[0]->rule.burm_reg && 
       k[1]->rule.burm_argend
     ) {
-      if(burm_cost_code(&c,29,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
-burm_trace(burm_np, 29, c);         s->cost[burm_arglist_NT] = c ;
+      if(burm_cost_code(&c,30,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 30, c);         s->cost[burm_arglist_NT] = c ;
         s->rule.burm_arglist = 3;
       }
     }
@@ -1545,8 +1594,8 @@ burm_trace(burm_np, 29, c);         s->cost[burm_arglist_NT] = c ;
       k[0]->kids[0]->rule.burm_mem && 
       k[1]->rule.burm_arglist
     ) {
-      if(burm_cost_code(&c,28,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
-burm_trace(burm_np, 28, c);         s->cost[burm_arglist_NT] = c ;
+      if(burm_cost_code(&c,29,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 29, c);         s->cost[burm_arglist_NT] = c ;
         s->rule.burm_arglist = 2;
       }
     }
@@ -1554,8 +1603,8 @@ burm_trace(burm_np, 28, c);         s->cost[burm_arglist_NT] = c ;
       k[0]->rule.burm_reg && 
       k[1]->rule.burm_arglist
     ) {
-      if(burm_cost_code(&c,27,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
-burm_trace(burm_np, 27, c);         s->cost[burm_arglist_NT] = c ;
+      if(burm_cost_code(&c,28,s) && COST_LESS(c,s->cost[burm_arglist_NT])) {
+burm_trace(burm_np, 28, c);         s->cost[burm_arglist_NT] = c ;
         s->rule.burm_arglist = 1;
       }
     }
@@ -1618,6 +1667,16 @@ burm_trace(burm_np, 16, c);         s->cost[burm_reg_NT] = c ;
       k[0]->rule.burm_mem && 
       k[1]->rule.burm_mem
     ) {
+      if(burm_cost_code(&c,26,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 26, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 6;
+        burm_closure_mem(s, c );
+      }
+    }
+    if (   /* mem: STORE(ARG,mem) */
+      k[0]->op == 8 && 	/* ARG */
+      k[1]->rule.burm_mem
+    ) {
       if(burm_cost_code(&c,25,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
 burm_trace(burm_np, 25, c);         s->cost[burm_mem_NT] = c ;
         s->rule.burm_mem = 5;
@@ -1654,8 +1713,8 @@ burm_trace(burm_np, 23, c);         s->cost[burm_mem_NT] = c ;
     SET_STATE(u,s);
     k=0;
     {  		/* imm: IMM */
-      if(burm_cost_code(&c,32,s) && COST_LESS(c,s->cost[burm_imm_NT])) {
-burm_trace(burm_np, 32, c);         s->cost[burm_imm_NT] = c ;
+      if(burm_cost_code(&c,33,s) && COST_LESS(c,s->cost[burm_imm_NT])) {
+burm_trace(burm_np, 33, c);         s->cost[burm_imm_NT] = c ;
         s->rule.burm_imm = 1;
       }
     }
@@ -1685,9 +1744,9 @@ burm_trace(burm_np, 20, c);         s->cost[burm_reg_NT] = c ;
     SET_STATE(u,s);
     k=0;
     {  		/* mem: OFFSET */
-      if(burm_cost_code(&c,26,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
-burm_trace(burm_np, 26, c);         s->cost[burm_mem_NT] = c ;
-        s->rule.burm_mem = 6;
+      if(burm_cost_code(&c,27,s) && COST_LESS(c,s->cost[burm_mem_NT])) {
+burm_trace(burm_np, 27, c);         s->cost[burm_mem_NT] = c ;
+        s->rule.burm_mem = 7;
         burm_closure_mem(s, c );
       }
     }
@@ -1701,8 +1760,8 @@ burm_trace(burm_np, 26, c);         s->cost[burm_mem_NT] = c ;
     SET_STATE(u,s);
     k=0;
     {  		/* argend: ARGEND */
-      if(burm_cost_code(&c,31,s) && COST_LESS(c,s->cost[burm_argend_NT])) {
-burm_trace(burm_np, 31, c);         s->cost[burm_argend_NT] = c ;
+      if(burm_cost_code(&c,32,s) && COST_LESS(c,s->cost[burm_argend_NT])) {
+burm_trace(burm_np, 32, c);         s->cost[burm_argend_NT] = c ;
         s->rule.burm_argend = 1;
       }
     }
@@ -1846,9 +1905,9 @@ NODEPTR *burm_kids(NODEPTR p, int eruleno, NODEPTR kids[]) {
   case 1: /* stmt: reg */
     kids[0] = p;
     break;
-  case 32: /* imm: IMM */
-  case 31: /* argend: ARGEND */
-  case 26: /* mem: OFFSET */
+  case 33: /* imm: IMM */
+  case 32: /* argend: ARGEND */
+  case 27: /* mem: OFFSET */
   case 20: /* reg: ARG */
   case 3: /* reg: BR */
     break;
@@ -1872,9 +1931,9 @@ NODEPTR *burm_kids(NODEPTR p, int eruleno, NODEPTR kids[]) {
   case 7: /* reg: RET(imm) */
     kids[0] = burm_child(p,0);
     break;
-  case 29: /* arglist: MERGE(reg,argend) */
-  case 27: /* arglist: MERGE(reg,arglist) */
-  case 25: /* mem: STORE(mem,mem) */
+  case 30: /* arglist: MERGE(reg,argend) */
+  case 28: /* arglist: MERGE(reg,arglist) */
+  case 26: /* mem: STORE(mem,mem) */
   case 24: /* mem: STORE(reg,mem) */
   case 23: /* mem: STORE(imm,mem) */
   case 21: /* mem: ADD(reg,mem) */
@@ -1885,8 +1944,8 @@ NODEPTR *burm_kids(NODEPTR p, int eruleno, NODEPTR kids[]) {
     kids[0] = burm_child(p,0);
     kids[1] = burm_child(p,1);
     break;
-  case 30: /* arglist: MERGE(LOAD(mem),argend) */
-  case 28: /* arglist: MERGE(LOAD(mem),arglist) */
+  case 31: /* arglist: MERGE(LOAD(mem),argend) */
+  case 29: /* arglist: MERGE(LOAD(mem),arglist) */
   case 14: /* reg: ADD(LOAD(mem),reg) */
     kids[0] = burm_child(burm_child(p,0),0);
     kids[1] = burm_child(p,1);
@@ -1897,9 +1956,12 @@ NODEPTR *burm_kids(NODEPTR p, int eruleno, NODEPTR kids[]) {
   case 19: /* reg: LOAD(LOAD(LOAD(mem))) */
     kids[0] = burm_child(burm_child(burm_child(p,0),0),0);
     break;
-  case 22: /* mem: ADD(reg,LOAD(mem)) */
+  case 22: /* mem: ADD(reg,LOAD(LOAD(mem))) */
     kids[0] = burm_child(p,0);
-    kids[1] = burm_child(burm_child(p,1),0);
+    kids[1] = burm_child(burm_child(burm_child(p,1),0),0);
+    break;
+  case 25: /* mem: STORE(ARG,mem) */
+    kids[0] = burm_child(p,1);
     break;
   default:
     burm_assert(0, PANIC("Bad external rule number %d in burm_kids\n", eruleno));

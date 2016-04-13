@@ -11,7 +11,7 @@ static cl::opt<std::string>
 OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
 static cl::opt<unsigned int>
-NumofRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(16));
+NumofRegs("num_regs", cl::desc("Number of Registers for Allocation"), cl::init(13));
 int NumRegs = NumofRegs;
 
 std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string> &InputFilename, LLVMContext &Context);
@@ -57,16 +57,18 @@ struct LiveTable{
         bbend = 0;
     }
 };
+#define INT_SIZE 8
 void addSymbolTable(SymbolTable* &ST, Value* value){
-    int temp;
+    /*int temp;
     if(!value->getType()->getPointerElementType()->isPointerTy())
         temp = (value->getType()->getPointerElementType()->getIntegerBitWidth())/8;
     else 
         temp = 8; //#define working on 64bit machinev
+    */
     if(ST->v == NULL){
         ST->v = value;
-        errs() << "value:" <<  temp << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
-        ST->addrCount = -temp;
+        errs() << "value:" <<  INT_SIZE << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
+        ST->addrCount = -INT_SIZE;
         return ;
     }
        
@@ -74,12 +76,12 @@ void addSymbolTable(SymbolTable* &ST, Value* value){
     p->v = value;
     p->next = ST;
      
-    errs() << "value:" << temp << '\n';
+    errs() << "value:" << INT_SIZE << '\n';
         //(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';//value->getType()->getPrimitiveSizeInBits() << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
     if(ST->addrCount > 0) 
-        p->addrCount = 0 - temp;// #define size_int 4
+        p->addrCount = 0 - INT_SIZE;// #define size_int 4
     else
-        p->addrCount = ST->addrCount - temp;// #define size_int 4
+        p->addrCount = ST->addrCount - INT_SIZE;// #define size_int 4
     ST = p;
 }
 void addArg2SymbolTable(SymbolTable* &ST, Value* value, int n){
@@ -259,29 +261,32 @@ void printLR(LiveRange* LR, int n){
     }
 }
 
-void printTreeList(TreeList* TL, LiveRange* LR, int n){
-    errs() << "this is the output\n";
-    printf("    .text\n");
-    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
-        //printTree(temp->tptr, 0);
-        //errs() << temp->tptr->op <<'\n';
-        gen(temp->tptr);
-        //errs()<<"\n";
-    }
+void printGlobalEntry() {
     printf("\n");
     printf("    .global main\n");
     printf("main:\n");
-    printf("    push %%rbp\n");
-    printf("    mov %%rsp, %%rbp\n");
-    printf("    call _Your_main\n");
-    printf("    mov %%rbp, %%rsp\n");
-    printf("    pop %%rbp\n");
+    printf("    pushq %%rbp\n");
+    printf("    movq %%rsp, %%rbp\n");
+    printf("    callq _Your_main\n");
+    printf("    movq %%rbp, %%rsp\n");
+    printf("    popq %%rbp\n");
     printf("    ret\n");
 
     printf("\n");
     printf("    .data\n");
     // traverse the table for global value
     // for printf("g_%s: .qual 0\n", g->val);
+}
+
+void printTreeList(TreeList* TL, LiveRange* LR, int n){
+    errs() << "this is the output\n";
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        //printTree(temp->tptr, 0);
+        //errs() << temp->tptr->op <<'\n';
+        gen(temp->tptr);
+        //errs()<<"\n";
+    }
+    
     //printLR(LR, n);
 }
 
@@ -409,6 +414,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
 
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
+    printf("    .text\n");
     for(auto &f:M->getFunctionList()){
       
         int NumInst = 0, NumBB = 0;
@@ -486,7 +492,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 Tree t = tree(I.getOpcode(), 0, 0, ST);
                 t->I = &I;
 
-                t->LR = (LT[0].LR[instCount]);
+                t->LR = &(LiveIn[0].LR[instCount]);
 
                 if(I.getOpcode() != 29)
                     addTree(TL ,t);
@@ -501,6 +507,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             t->kids[1] = t_mov;
                             bool temp1 = mergeTreeListLeft(TL, I.getOperand(0), t);
                             bool temp2 = mergeTreeListLeft(TL, I.getOperand(1), t_mov);
+                            t_mov->LR = t->LR;
                             if(!temp1){ 
                                 errs()<<"merge tree error!\n";
                                 exit(1);//addTree(TL, t);
@@ -710,7 +717,14 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                             case ICmpInst::ICMP_EQ: t->val = 5; break;
                             default: errs() << "unknown predicate of cmp\n"; break;
                         }
-                        break; 
+                        Tree temp;
+                        temp = t->kids[0];
+                        t->kids[0] = t->kids[1];
+                        t->kids[1] = temp;
+
+
+                        break;
+
                     }
                     default: errs() << "unknown operation\n";break;
                 }
@@ -751,6 +765,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 }
             }
             errs() << changed <<'\n';
+            
             //printLR(LiveIn[0].LR, LiveIn[0].NumVars);
         }
         while(changed);
@@ -774,8 +789,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         delete ST;
     }
 
-
-
+    printGlobalEntry();
 
     //legacy::PassManager PM;
     //PM.add(new PrintModulePass(&llvm::cout));
