@@ -40,4 +40,4 @@ attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-
 
 !llvm.ident = !{!0}
 
-!0 = !{!"clang version 3.9.0 "}
+!0 = !{!"clang version 3.9.0 (http://llvm.org/git/clang.git e88720a6287e5fa399e833ed5ddf4f0b475c37bd) (http://llvm.org/git/llvm.git 9867695c88ba0998618aa879e86315800c49c7c8)"}
