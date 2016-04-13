@@ -1038,8 +1038,8 @@ int indent)
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, _s->kids[0]->node->val))
         //insertLoadedMem(name, _s->kids[0]->node->val, RegCounter);
-        printf("failded here\n");
-        printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
+        //printf("failded here\n");
+        //printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
 
@@ -1056,8 +1056,8 @@ int indent)
         mem_action(_s->kids[0]->kids[0],0);
 
         //printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, RegCounter);
-        printf("failded here2\n");
-        printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
+        //printf("failded here2\n");
+        //printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[tar]);
 
