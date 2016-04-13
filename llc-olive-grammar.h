@@ -57,7 +57,9 @@ enum {
     ARGEND=995,
     CMP=51,
     BR=800,
-    BRC=2
+    BRC=2,
+    GLOBAL=994,
+    PRINTF=993
 };
 
 //static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
@@ -66,6 +68,8 @@ enum {
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
+extern int GlobalLength;
+extern int GlobalArray[100];
 static int LocalVarStack = 0;
 
 struct LiveRange{
@@ -125,6 +129,7 @@ enum {
     imM=2,
     arglisT=3,
     pointeR=4,
+    globalvaR=5,
     nontypE = 999
 };
 
@@ -408,7 +413,6 @@ static int _ern = 0;
 
 static int shouldTrace = 0;
 static int shouldCover = 0;
-//static int RegCounter = 1;
 static llvm::Function* PreFun = NULL;
 static llvm::BasicBlock* PreBB = NULL;
 int OP_LABEL(NODEPTR p) {
@@ -427,6 +431,8 @@ int OP_LABEL(NODEPTR p) {
         case CMP: return 11;
         case BR: return 12;
         case BRC:return 13;
+        case GLOBAL:return 14;
+        case PRINTF:return 15;
 	    default: return p->op;
 	}
 }
@@ -447,12 +453,14 @@ static void burm_trace(NODEPTR, int, COST);
 #define CMP 11
 #define BR 12
 #define BRC 13
+#define GLOBAL 14
+#define PRINTF 15
 
 struct burm_state {
   int op;
   NODEPTR node;
   struct burm_state **kids;
-  COST cost[8];
+  COST cost[9];
   struct {
     unsigned burm_stmt:2;
     unsigned burm_reg:5;
@@ -460,6 +468,7 @@ struct burm_state {
     unsigned burm_imm:1;
     unsigned burm_arglist:3;
     unsigned burm_argend:1;
+    unsigned burm_globalvar:2;
     unsigned burm__:1;
   } rule;
 };

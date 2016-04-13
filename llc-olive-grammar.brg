@@ -52,7 +52,9 @@ enum {
     ARGEND=995,
     CMP=51,
     BR=800,
-    BRC=2
+    BRC=2,
+    GLOBAL=994,
+    PRINTF=993
 };
 
 //static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
@@ -61,7 +63,10 @@ enum {
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
+extern int GlobalLength;
+extern int GlobalArray[100];
 static int LocalVarStack = 0;
+static int AliasArgReg = 0;
 
 struct LiveRange{
     Value *v;
@@ -120,6 +125,7 @@ enum {
     imM=2,
     arglisT=3,
     pointeR=4,
+    globalvaR=5,
     nontypE = 999
 };
 
@@ -387,7 +393,7 @@ int RegAllocation(int start, int end) {
     expireOldIntervals(start);
 
     if( NumNodes == NumRegs) {
-        //spill
+        //never spill in our program.....
     }
     else {
         for(i = NumRegs-1; i >= 0  ; i--)
@@ -403,7 +409,6 @@ static int _ern = 0;
 
 static int shouldTrace = 0;
 static int shouldCover = 0;
-//static int RegCounter = 1;
 static llvm::Function* PreFun = NULL;
 static llvm::BasicBlock* PreBB = NULL;
 int OP_LABEL(NODEPTR p) {
@@ -422,6 +427,8 @@ int OP_LABEL(NODEPTR p) {
         case CMP: return 11;
         case BR: return 12;
         case BRC:return 13;
+        case GLOBAL:return 14;
+        case PRINTF:return 15;
 	    default: return p->op;
 	}
 }
@@ -431,12 +438,14 @@ static void burm_trace(NODEPTR, int, COST);
 %}
 %term BURP=0 CALL=54 RET=1 ADD=11 MERGE=997 LOAD=30 STORE=31
 %term IMM=996 ARG=998 OFFSET=999 ARGEND=995 CMP=51 BR=800 BRC=2
+%term GLOBAL=994 PRINTF=993
 %declare<void> stmt<int indent>;
 %declare<void> reg<int indent>;
 %declare<void> mem<int indent>;
 %declare<void> imm<int indent>;
 %declare<void> arglist<int indent>;
 %declare<void> argend<int indent>;
+%declare<void> globalvar<int indent>;
 %%
 
 stmt:	BURP(_,_,_)
@@ -457,6 +466,7 @@ stmt:   reg
             PreBB = CurBB;
             clearActiveNodeList();
             clearSpilledNodeList();
+            //initialize the activelist
             printf("_Your_%s:\n",CurFun->getName().data());
             printf("    pushq %%rbp\n");
             printf("    movq %%rsp, %%rbp\n");
@@ -488,6 +498,7 @@ stmt:   mem
             PreBB = CurBB;
             clearActiveNodeList();
             clearSpilledNodeList();
+            //initialize the activelist
             printf("_Your_%s:\n",CurFun->getName().data());
             printf("    pushq %%rbp\n");
             printf("    movq %%rsp, %%rbp\n");
@@ -632,6 +643,19 @@ reg:    RET(mem)
         $0->valtype = meM;
     };
 
+reg:    RET(globalvar)
+    { $cost[0].cost=$cost[2].cost+1;}
+    = {
+        $action[2](0);
+        printf("    movq g_%d(%%rip), %%rax\n", $2->val);
+        printf("    movq %%rbp, %%rsp\n");
+        printf("    popq %%rbp\n");
+        printf("    retq\n\n");
+
+        $0->val = $2->val;
+        $0->valtype = meM;
+    };
+
 reg:    CALL(arglist)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
@@ -645,9 +669,40 @@ reg:    CALL(arglist)
         int tar = RegAllocation($0->LR->start, $0->LR->end);
 
         printf("    callq _Your_%s\n", FunValue -> getName().data());
+        for( int i = 0; i < AliasArgReg; i++ )
+            printf("    popq %s\n", Regs[5-i]);
         printf("    movq %%rax, %s\n", Regs[tar]);
 
+        AliasArgReg = 0;
         $0->val = tar;
+        $0->valtype = reG;
+    };
+
+reg:    PRINTF(reg)
+{ $cost[0].cost=$cost[2].cost+1; }
+    = {
+        if($0->marked) return; $0->marked = true;
+
+        printf("    movq %s, %%rsi\n", Regs[$2->val]);
+        printf("    movq $.prt, %%rdi\n");
+        printf("    xorq %rax, %rax\n");
+        printf("    callq printf\n");
+
+        $0->val = 0;
+        $0->valtype = reG;
+    };
+
+reg:    PRINTF(LOAD(mem))
+{ $cost[0].cost=$cost[3].cost+1; }
+    = {
+        if($0->marked) return; $0->marked = true;
+
+        printf("    movq %d(%%rbp), %%rsi\n", $2->val);
+        printf("    movq $.prt, %%rdi\n");
+        printf("    xorq %rax, %rax\n");
+        printf("    callq printf\n");
+
+        $0->val = 0;
         $0->valtype = reG;
     };
 
@@ -693,6 +748,20 @@ reg:    ADD(mem, reg)
         $0->val = $3->val;
         $0->valtype = reG;
     };
+    
+reg:    ADD(globalvar, reg)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        if($0->marked) return; $0->marked = true;
+
+        $action[2](0);
+        $action[3](0);
+
+        printf("    addq g_%d(%%rip), %s\n", $2->val, Regs[$3->val]);
+
+        $0->val = $3->val;
+        $0->valtype = reG;
+    };
 
 reg:    ADD(LOAD(mem), reg)
     { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
@@ -725,10 +794,24 @@ reg:    LOAD(reg)
 
         $action[2](0);
 
-        // printf("    movq %%%d, %%%d\n", $2->val, RegCounter);
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
-        //printActiveNodeList();
+        printActiveNodeList();
+
+        $0->val = tar;
+        $0->valtype = reG;
+    };
+
+reg:    LOAD(globalvar)
+    { $cost[0].cost=$cost[2].cost+1; }
+    = {
+        if($0->marked) return; $0->marked = true;
+
+        $action[2](0);
+
+        int tar = RegAllocation($0->LR->start, $0->LR->end);
+        printf("    movq g_%d(%%rip), %s\n", $2->val, Regs[tar]);
+        printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -744,11 +827,10 @@ reg:    LOAD(mem)
         //Function* CurFun = $0->I->getFunction();
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, $2->val))
-        //insertLoadedMem(name, $2->val, RegCounter);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
-        //printActiveNodeList();
+        printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -763,7 +845,7 @@ reg:    LOAD(LOAD(mem))
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
-        //printActiveNodeList();
+        printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -778,6 +860,7 @@ reg:    LOAD(LOAD(LOAD(mem)))
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $4->val, Regs[tar]);
+        printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -790,6 +873,21 @@ reg:    ARG
 
         $0->val = -1;
     };
+
+globalvar: ADD(reg, globalvar)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        if($0->marked) return; $0->marked = true;
+
+        $action[2](0);
+        $action[3](0);
+
+        printf("    addq %s, g_%d(%%rip)\n", Regs[$2->val], $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = globalvaR;
+    };
+
 
 mem:    ADD(reg, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
@@ -891,6 +989,20 @@ mem:    OFFSET
         return;
     };
 
+globalvar:    STORE(reg, globalvar)
+    { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
+    = {
+        $action[2](0);
+        $action[3](0);
+
+        if($2->val < 0)
+            printf("report reg = $d\n", $2->val);
+        printf("    movq %s, g_%d(%%rip)\n", Regs[$2->val], $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = globalvar;
+    };
+
 arglist:    MERGE(reg, arglist)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
@@ -898,9 +1010,15 @@ arglist:    MERGE(reg, arglist)
         $action[3](0);
 
         if( $3->val < 6 )
+            if( IfRegAvailable[0] == 0 ) {
+                AliasArgReg ++;
+                printf("    pushq %s\n", Regs[$3->val]);
+            }
             printf("    movq %s, %s\n",Regs[$2->val], Regs[$3->val]);
-        else
-            printf("    movq %s, %d(%%rsp)\n", Regs[$2->val], 8*($3->val-5));
+        else {
+            printf("    movq %d(%%rbp), %%rax\n", $2->val);
+            printf("    movq %%rax, %d(%%rsp)\n", 8*($3->val-5));
+        }
 
         $0->val = $3->val+1;
         $0->valtype = arglisT;
@@ -913,6 +1031,10 @@ arglist:    MERGE(LOAD(mem), arglist)
         $action[4](0);
 
         if( $4->val < 6 )
+            if( IfRegAvailable[0] == 0 ) {
+                AliasArgReg ++;
+                printf("    pushq %s\n", Regs[$4->val]);
+            }
             printf("    movq %d(%%rbp), %s\n", $3->val, Regs[$4->val]);
         else{
             printf("    movq %d(%%rbp), %%rax\n", $3->val);
@@ -929,6 +1051,10 @@ arglist:    MERGE(reg, argend)
         $action[2](0);
         $action[3](0);
 
+        if( IfRegAvailable[0] == 0 ) {
+            AliasArgReg ++;
+            printf("    pushq %s\n", Regs[0]);
+        }
         printf("    movq %%%d, %s\n", $2->val, Regs[0]);
 
         $0->val = 1;
@@ -941,6 +1067,10 @@ arglist:    MERGE(LOAD(mem), argend)
         $action[3](0);
         $action[4](0);
 
+        if( IfRegAvailable[0] == 0 ) {
+            AliasArgReg ++;
+            printf("    pushq %s\n", Regs[0]);
+        }
         printf("    movq %d(%%rbp), %s\n", $3->val, Regs[0]);
 
         $0->val = 1;
@@ -948,6 +1078,12 @@ arglist:    MERGE(LOAD(mem), argend)
     };
 
 argend:     ARGEND
+    { $cost[0].cost=0; }
+    = {
+        return;
+    };
+
+globalvar:  GLOBAL
     { $cost[0].cost=0; }
     = {
         return;
