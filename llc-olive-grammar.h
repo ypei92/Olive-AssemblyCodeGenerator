@@ -60,9 +60,9 @@ enum {
     BRC=2
 };
 
-static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
-static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
-static char CallerRegs[2][5] = {"%r10", "%r11"};
+//static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+//static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
+//static char CallerRegs[2][5] = {"%r10", "%r11"};
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
@@ -101,6 +101,7 @@ typedef struct tree {
     llvm::Instruction *I;
     int valtype;
     LiveRange* LR;
+    bool marked;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -376,7 +377,7 @@ int RegAllocation(int start, int end) {
         }
     }
     else {
-        for(i = NumRegs; i > 0  ; i--)
+        for(i = NumRegs-1; i >= 0  ; i--)
             if(IfRegAvailable[i] == 1)
                 break;
         insertActiveNode(start, end, i); 
@@ -388,12 +389,13 @@ int RegAllocation(int start, int end) {
 int RegAllocation(int start, int end) {
     int i = 0;
     int NumNodes = lengthActiveNodeList();
+    expireOldIntervals(start);
 
     if( NumNodes == NumRegs) {
         //spill
     }
     else {
-        for(i = NumRegs; i > 0  ; i--)
+        for(i = NumRegs-1; i >= 0  ; i--)
             if(IfRegAvailable[i] == 1)
                 break;
         insertActiveNode(start, end, i); 
@@ -408,7 +410,7 @@ static int shouldTrace = 0;
 static int shouldCover = 0;
 //static int RegCounter = 1;
 static llvm::Function* PreFun = NULL;
-
+static llvm::BasicBlock* PreBB = NULL;
 int OP_LABEL(NODEPTR p) {
 	switch (p->op) {
 	    //case IMM:  if (p->val == 0) return ZERO;

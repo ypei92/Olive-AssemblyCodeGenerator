@@ -13,5 +13,5 @@ int main()
 
     long long c = a + *p;
     long long d = *q + b;
-    long long e = (*q)*(*p);
+    long long e = (*q)+(*p);
 }

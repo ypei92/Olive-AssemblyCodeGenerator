@@ -33,7 +33,7 @@ main:                                   # @main
 	movq	-16(%rbp), %rax
 	movq	(%rax), %rax
 	movq	-24(%rbp), %rcx
-	imulq	(%rcx), %rax
+	addq	(%rcx), %rax
 	movq	%rax, -40(%rbp)
 	xorl	%eax, %eax
 	popq	%rbp

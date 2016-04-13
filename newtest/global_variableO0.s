@@ -14,24 +14,16 @@ main:                                   # @main
 	movq	%rsp, %rbp
 .Ltmp2:
 	.cfi_def_cfa_register %rbp
-	subq	$16, %rsp
-	movl	$0, -12(%rbp)
-	movl	$2, -8(%rbp)
-	movl	$3, -4(%rbp)
-	movl	-12(%rbp), %eax
-	addl	%eax, d(%rip)
-	movslq	-8(%rbp), %rax
+	movq	$2, -24(%rbp)
+	movq	$3, -16(%rbp)
+	movq	$4, -8(%rbp)
+	movq	-24(%rbp), %rax
+	addq	%rax, d(%rip)
+	movq	-16(%rbp), %rax
 	addq	%rax, e(%rip)
-	movslq	-4(%rbp), %rcx
-	addq	f(%rip), %rcx
-	movq	%rcx, f(%rip)
-	movl	d(%rip), %esi
-	movq	e(%rip), %rdx
-	movl	$.L.str, %edi
+	movq	-8(%rbp), %rax
+	addq	%rax, f(%rip)
 	xorl	%eax, %eax
-	callq	printf
-	xorl	%eax, %eax
-	addq	$16, %rsp
 	popq	%rbp
 	retq
 .Lfunc_end0:
@@ -41,10 +33,10 @@ main:                                   # @main
 	.type	d,@object               # @d
 	.data
 	.globl	d
-	.p2align	2
+	.p2align	3
 d:
-	.long	20                      # 0x14
-	.size	d, 4
+	.quad	20                      # 0x14
+	.size	d, 8
 
 	.type	e,@object               # @e
 	.globl	e
@@ -59,12 +51,6 @@ e:
 f:
 	.quad	40                      # 0x28
 	.size	f, 8
-
-	.type	.L.str,@object          # @.str
-	.section	.rodata.str1.1,"aMS",@progbits,1
-.L.str:
-	.asciz	"%d %ld %lld\n"
-	.size	.L.str, 13
 
 
 	.ident	"clang version 3.9.0 "

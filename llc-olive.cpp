@@ -64,10 +64,11 @@ void addSymbolTable(SymbolTable* &ST, Value* value){
         temp = (value->getType()->getPointerElementType()->getIntegerBitWidth())/8;
     else 
         temp = 8; //#define working on 64bit machinev
+<<<<<<< HEAD
         */
     if(ST->v == NULL){
         ST->v = value;
-        //errs() << "value:" <<  temp << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
+        errs() << "value:" <<  INT_SIZE << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
         ST->addrCount = -INT_SIZE;
         return ;
     }
@@ -76,7 +77,7 @@ void addSymbolTable(SymbolTable* &ST, Value* value){
     p->v = value;
     p->next = ST;
      
-    //errs() << "value:" << temp << '\n';
+    errs() << "value:" << INT_SIZE << '\n';
         //(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';//value->getType()->getPrimitiveSizeInBits() << '\n';//value->getType()->getTypeAllocSize() << '\n';//(value->getType()->getPointerElementType()->getIntegerBitWidth()) << '\n';
     if(ST->addrCount > 0) 
         p->addrCount = 0 - INT_SIZE;// #define size_int 4
@@ -302,29 +303,32 @@ void printLR(LiveRange* LR, int n){
     }
 }
 
-void printTreeList(TreeList* TL, LiveRange* LR, int n){
-    errs() << "this is the output\n";
-    printf("    .text\n");
-    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
-        //printTree(temp->tptr, 0);
-        //errs() << temp->tptr->op <<'\n';
-        gen(temp->tptr);
-        //errs()<<"\n";
-    }
+void printGlobalEntry() {
     printf("\n");
     printf("    .global main\n");
     printf("main:\n");
-    printf("    push %%rbp\n");
-    printf("    mov %%rsp, %%rbp\n");
-    printf("    call _Your_main\n");
-    printf("    mov %%rbp, %%rsp\n");
-    printf("    pop %%rbp\n");
+    printf("    pushq %%rbp\n");
+    printf("    movq %%rsp, %%rbp\n");
+    printf("    callq _Your_main\n");
+    printf("    movq %%rbp, %%rsp\n");
+    printf("    popq %%rbp\n");
     printf("    ret\n");
 
     printf("\n");
     printf("    .data\n");
     // traverse the table for global value
     // for printf("g_%s: .qual 0\n", g->val);
+}
+
+void printTreeList(TreeList* TL, LiveRange* LR, int n){
+    errs() << "this is the output\n";
+    for(TreeList* temp = TL; temp != NULL; temp = temp->next){
+        //printTree(temp->tptr, 0);
+        //errs() << temp->tptr->op <<'\n';
+        gen(temp->tptr);
+        //errs()<<"\n";
+    }
+    
     //printLR(LR, n);
 }
 
@@ -452,6 +456,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
 
     //PM.run(*M);
     //FunctionListType &FunctionList = M.getFunctionList();
+    printf("    .text\n");
     for(auto &f:M->getFunctionList()){
       
         int NumInst = 0, NumBB = 0;
@@ -530,7 +535,6 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 t->I = &I;
 
                 t->LR = &(LiveIn[0].LR[instCount]);
-                //errs() << "LR address " << t->LR << "\n";
                 if(I.getOpcode() != 29)
                     addTree(TL ,t);
                 switch(I.getOpcode()){
@@ -760,6 +764,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                         t->kids[0] = t->kids[1];
                         t->kids[1] = temp;
                         break; 
+
                     }
                     default: errs() << "unknown operation\n";break;
                 }
@@ -800,6 +805,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                 }
             }
             //errs() << changed <<'\n';
+            
             //printLR(LiveIn[0].LR, LiveIn[0].NumVars);
         }
         while(changed);
@@ -823,8 +829,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         delete ST;
     }
 
-
-
+    printGlobalEntry();
 
     //legacy::PassManager PM;
     //PM.add(new PrintModulePass(&llvm::cout));

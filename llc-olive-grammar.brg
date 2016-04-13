@@ -55,9 +55,9 @@ enum {
     BRC=2
 };
 
-static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
-static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
-static char CallerRegs[2][5] = {"%r10", "%r11"};
+//static char ArgRegs[6][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+//static char CalleeRegs[5][5] = {"%rbx", "%r12", "%r13", "%r14", "%r15"};
+//static char CallerRegs[2][5] = {"%r10", "%r11"};
 static char Regs[13][5] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rbx", "%r12", "%r13", "%r14", "%r15", "%r10", "%r11"}; 
 static bool IfRegAvailable[13] = {0};
 extern int NumRegs;
@@ -96,6 +96,7 @@ typedef struct tree {
     llvm::Instruction *I;
     int valtype;
     LiveRange* LR;
+    bool marked;
 	struct { struct burm_state *state; } x;
 } *NODEPTR, *Tree;
 
@@ -371,7 +372,7 @@ int RegAllocation(int start, int end) {
         }
     }
     else {
-        for(i = NumRegs; i > 0  ; i--)
+        for(i = NumRegs-1; i >= 0  ; i--)
             if(IfRegAvailable[i] == 1)
                 break;
         insertActiveNode(start, end, i); 
@@ -383,12 +384,13 @@ int RegAllocation(int start, int end) {
 int RegAllocation(int start, int end) {
     int i = 0;
     int NumNodes = lengthActiveNodeList();
+    expireOldIntervals(start);
 
     if( NumNodes == NumRegs) {
         //spill
     }
     else {
-        for(i = NumRegs; i > 0  ; i--)
+        for(i = NumRegs-1; i >= 0  ; i--)
             if(IfRegAvailable[i] == 1)
                 break;
         insertActiveNode(start, end, i); 
@@ -403,7 +405,7 @@ static int shouldTrace = 0;
 static int shouldCover = 0;
 //static int RegCounter = 1;
 static llvm::Function* PreFun = NULL;
-
+static llvm::BasicBlock* PreBB = NULL;
 int OP_LABEL(NODEPTR p) {
 	switch (p->op) {
 	    //case IMM:  if (p->val == 0) return ZERO;
@@ -448,9 +450,11 @@ stmt:   reg
     { $cost[0].cost=$cost[1].cost; }
     = {
         llvm::Function* CurFun = $0->I->getFunction();
+        llvm::BasicBlock* CurBB = $0->I->getParent();
         int LocalVarStore = 0; 
         if( CurFun != PreFun ) {
             PreFun = CurFun;
+            PreBB = CurBB;
             clearActiveNodeList();
             clearSpilledNodeList();
             printf("_Your_%s:\n",CurFun->getName().data());
@@ -459,11 +463,17 @@ stmt:   reg
             if($0->ST!=NULL) {
                 LocalVarStore = $0->ST->addrCount;
                 LocalVarStack = LocalVarStore;
-                printf("    subq $%d, %%rsp\n", LocalVarStore);
+                printf("    subq $%d, %%rsp\n", -LocalVarStore);
             }
             else
                 LocalVarStack = 0;
         }
+        
+        if( CurBB != PreBB ) {
+            PreBB = CurBB;
+            printf("\n%s_%s:\n",CurFun->getName().data(), CurBB->getName().data());
+        }
+
         $action[1](0);
     };
 
@@ -471,9 +481,11 @@ stmt:   mem
     { $cost[0].cost=$cost[1].cost; }
     = {
         llvm::Function* CurFun = $0->I->getFunction();
+        llvm::BasicBlock* CurBB = $0->I->getParent();
         int LocalVarStore = 0; 
         if( CurFun != PreFun ) {
             PreFun = CurFun;
+            PreBB = CurBB;
             clearActiveNodeList();
             clearSpilledNodeList();
             printf("_Your_%s:\n",CurFun->getName().data());
@@ -482,11 +494,17 @@ stmt:   mem
             if($0->ST!=NULL) {
                 LocalVarStore = $0->ST->addrCount;
                 LocalVarStack = LocalVarStore;
-                printf("    subq $%d, %%rsp\n", LocalVarStore);
+                printf("    subq $%d, %%rsp\n", -LocalVarStore);
             }
             else
                 LocalVarStack = 0;
         }
+
+        if( CurBB != PreBB ) {
+            PreBB = CurBB;
+            printf("\n%s_%s:\n",CurFun->getName().data(), CurBB->getName().data());
+        }
+
         $action[1](0);
     };
 
@@ -494,8 +512,13 @@ reg:   BR
     { $cost[0].cost=0;}
     = {
         llvm::Function* CurFun = $0->I->getFunction();
-        printf("    jmp LABEL\n");
-        printf("%s_LABEL:\n", CurFun->getName().data());
+
+        BasicBlock* opd1 = (BasicBlock*) $0->I->getOperand(0);
+        const char* jmplabel = opd1->getName().data();
+        const char* funcname = $0->I->getFunction()->getName().data();
+        
+        printf("    jmp %s_%s\n",funcname, jmplabel);
+        //printf("\n%s_%s:\n", funcname, jmplabel);
     };
 
 reg:   BRC(CMP(reg, reg))
@@ -505,21 +528,21 @@ reg:   BRC(CMP(reg, reg))
         $action[4](0);
         BasicBlock* opd1 = (BasicBlock*) $0->I->getOperand(1);
         BasicBlock* opd2 = (BasicBlock*) $0->I->getOperand(2);
-        const char* thenlabel = opd1->getName().data();
-        const char* elselabel = opd2->getName().data();
+        const char* elselabel = opd1->getName().data();
+        const char* thenlabel = opd2->getName().data();
         const char* funcname = $0->I->getFunction()->getName().data();
         
         printf("    cmpq %%%d, %%%d\n", $3->val, $4->val);
         switch($0->val){
-            case SGT:   printf("    jg %s_%s\n", funcname, elselabel);break;
-            case SGE:   printf("    jge %s_%s\n", funcname, elselabel);break;
-            case SLT:   printf("    jl %s_%s\n", funcname, elselabel);break;
-            case SLE:   printf("    jle %s_%s\n", funcname, elselabel);break;
-            case NEQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
-            case EQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case SGT:   printf("    jle %s_%s\n", funcname, elselabel);break;
+            case SGE:   printf("    jl %s_%s\n", funcname, elselabel);break;
+            case SLT:   printf("    jge %s_%s\n", funcname, elselabel);break;
+            case SLE:   printf("    jg %s_%s\n", funcname, elselabel);break;
+            case NEQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case EQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
             default:   printf("    nojump %s_%s \n", funcname, elselabel);break;
         }
-        printf("%s_%s:\n",funcname, thenlabel);
+        //printf("\n%s_%s:\n",funcname, thenlabel);
     };
 
 reg:   BRC(CMP(LOAD(mem), reg))
@@ -529,21 +552,21 @@ reg:   BRC(CMP(LOAD(mem), reg))
         $action[5](0);
         BasicBlock* opd1 = (BasicBlock*) $0->I->getOperand(1);
         BasicBlock* opd2 = (BasicBlock*) $0->I->getOperand(2);
-        const char* thenlabel = opd1->getName().data();
-        const char* elselabel = opd2->getName().data();
+        const char* elselabel = opd1->getName().data();
+        const char* thenlabel = opd2->getName().data();
         const char* funcname = $0->I->getFunction()->getName().data();
         
         printf("    cmpq %d(%%rbp), %%%d\n", $4->val, $5->val);
         switch($0->val){
-            case SGT:   printf("    jg %s_%s\n", funcname, elselabel);break;
-            case SGE:   printf("    jge %s_%s\n", funcname, elselabel);break;
-            case SLT:   printf("    jl %s_%s\n", funcname, elselabel);break;
-            case SLE:   printf("    jle %s_%s\n", funcname, elselabel);break;
-            case NEQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
-            case EQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case SGT:   printf("    jle %s_%s\n", funcname, elselabel);break;
+            case SGE:   printf("    jl %s_%s\n", funcname, elselabel);break;
+            case SLT:   printf("    jge %s_%s\n", funcname, elselabel);break;
+            case SLE:   printf("    jg %s_%s\n", funcname, elselabel);break;
+            case NEQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case EQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
             default:   printf("    nojump %s_%s \n", funcname, elselabel);break;
         }
-        printf("%s_%s:\n",funcname, thenlabel);
+        //printf("\n%s_%s:\n",funcname, thenlabel);
     };
 
 reg:   BRC(CMP(reg, LOAD(mem)))
@@ -553,21 +576,21 @@ reg:   BRC(CMP(reg, LOAD(mem)))
         $action[5](0);
         BasicBlock* opd1 = (BasicBlock*) $0->I->getOperand(1);
         BasicBlock* opd2 = (BasicBlock*) $0->I->getOperand(2);
-        const char* thenlabel = opd1->getName().data();
-        const char* elselabel = opd2->getName().data();
+        const char* elselabel = opd1->getName().data();
+        const char* thenlabel = opd2->getName().data();
         const char* funcname = $0->I->getFunction()->getName().data();
         
-        printf("    cmpq %%%d, %d(%%rbp)\n", $3->val, $5->val);
+        printf("    cmpq %s, %d(%%rbp)\n", Regs[$3->val], $5->val);
         switch($0->val){
-            case SGT:   printf("    jg %s_%s\n", funcname, elselabel);break;
-            case SGE:   printf("    jge %s_%s\n", funcname, elselabel);break;
-            case SLT:   printf("    jl %s_%s\n", funcname, elselabel);break;
-            case SLE:   printf("    jle %s_%s\n", funcname, elselabel);break;
-            case NEQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
-            case EQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case SGT:   printf("    jle %s_%s\n", funcname, elselabel);break;
+            case SGE:   printf("    jl %s_%s\n", funcname, elselabel);break;
+            case SLT:   printf("    jge %s_%s\n", funcname, elselabel);break;
+            case SLE:   printf("    jg %s_%s\n", funcname, elselabel);break;
+            case NEQ:   printf("    je %s_%s\n", funcname, elselabel);break;
+            case EQ:   printf("    jne %s_%s\n", funcname, elselabel);break;
             default:   printf("    nojump %s_%s \n", funcname, elselabel);break;
         }
-        printf("%s_%s:\n",funcname, thenlabel);
+        //printf("\n%s_%s:\n",funcname, thenlabel);
     };
 
 reg:    RET(imm)
@@ -577,7 +600,7 @@ reg:    RET(imm)
         printf("    movq $%d, %%rax\n", $2->val);
         printf("    movq %%rbp, %%rsp\n");
         printf("    popq %%rbp\n");
-        printf("    ret\n\n");
+        printf("    retq\n\n");
 
         $0->val = $2->val;
         $0->valtype = imM;
@@ -587,10 +610,10 @@ reg:    RET(reg)
     { $cost[0].cost=$cost[2].cost+1;}
     = {
         $action[2](0);
-        printf("    movq %%%d, %%rax\n", $2->val);
+        printf("    movq %s, %%rax\n", Regs[$2->val]);
         printf("    movq %%rbp, %%rsp\n");
         printf("    popq %%rbp\n");
-        printf("    ret\n\n");
+        printf("    retq\n\n");
 
         $0->val = $2->val;
         $0->valtype = reG;
@@ -603,7 +626,7 @@ reg:    RET(mem)
         printf("    movq %d(%%rbp), %%rax\n", $2->val);
         printf("    movq %%rbp, %%rsp\n");
         printf("    popq %%rbp\n");
-        printf("    ret\n");
+        printf("    retq\n\n");
 
         $0->val = $2->val;
         $0->valtype = meM;
@@ -612,6 +635,8 @@ reg:    RET(mem)
 reg:    CALL(arglist)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         if( $0->val != 0 )
             $action[2](0);
 
@@ -619,7 +644,7 @@ reg:    CALL(arglist)
         llvm::Value* FunValue = $0->I->getOperand(NumOperands - 1);
         int tar = RegAllocation($0->LR->start, $0->LR->end);
 
-        printf("    call %s\n", FunValue -> getName().data());
+        printf("    callq _Your_%s\n", FunValue -> getName().data());
         printf("    movq %%rax, %s\n", Regs[tar]);
 
         $0->val = tar;
@@ -629,10 +654,12 @@ reg:    CALL(arglist)
 reg:    ADD(reg, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %%%d, %%%d\n", $2->val, $3->val);
+        printf("    addq %s, %s\n", Regs[$2->val], Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -642,10 +669,12 @@ reg:    ADD(reg, reg)
 reg:    ADD(imm, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
-        printf("    addq $%d, %%%d\n", $2->val, $3->val);
+        printf("    addq $%d, %s\n", $2->val, Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -654,10 +683,12 @@ reg:    ADD(imm, reg)
 reg:    ADD(mem, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %d(%%rbp), %%%d\n", $2->val, $3->val);
+        printf("    addq %d(%%rbp), %s\n", $2->val, Regs[$3->val]);
 
         $0->val = $3->val;
         $0->valtype = reG;
@@ -666,10 +697,12 @@ reg:    ADD(mem, reg)
 reg:    ADD(LOAD(mem), reg)
     { $cost[0].cost=$cost[3].cost+$cost[4].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[3](0);
         $action[4](0);
 
-        printf("    addq %d(%%rbp), %%%d\n", $3->val, $4->val);
+        printf("    addq %d(%%rbp), %s\n", $3->val, Regs[$4->val]);
 
         $0->val = $4->val;
         $0->valtype = reG;
@@ -678,19 +711,24 @@ reg:    ADD(LOAD(mem), reg)
 reg:   CMP(reg, reg)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
-        printf("    cmpq %%%d, %%%d\n", $2->val, $3->val);
+        printf("    cmpq %s, %s\n", Regs[$2->val], Regs[$3->val]);
     };
 
 reg:    LOAD(reg)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
 
         // printf("    movq %%%d, %%%d\n", $2->val, RegCounter);
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -699,16 +737,17 @@ reg:    LOAD(reg)
 reg:    LOAD(mem)
     { $cost[0].cost=$cost[2].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
 
         //Function* CurFun = $0->I->getFunction();
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, $2->val))
         //insertLoadedMem(name, $2->val, RegCounter);
-        //printf("failded here\n");
-        //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -717,13 +756,16 @@ reg:    LOAD(mem)
 reg:    LOAD(LOAD(mem))
     { $cost[0].cost=$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+        
         $action[3](0);
 
         //printf("    movq %d(%%rbp), %%%d\n", $3->val, RegCounter);
         //printf("failded here2\n");
         //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
-        int tar = RegAllocation($0->LR->start, $0->LR->end);
+       int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
+        //printActiveNodeList();
 
         $0->val = tar;
         $0->valtype = reG;
@@ -732,9 +774,9 @@ reg:    LOAD(LOAD(mem))
 reg:    LOAD(LOAD(LOAD(mem)))
     { $cost[0].cost=$cost[4].cost+1; }
     = {
-        $action[4](0);
+        if($0->marked) return; $0->marked = true;
 
-        //printf("    movq %d(%%rbp), %%%d\n", $4->val, RegCounter);
+        $action[4](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $4->val, Regs[tar]);
@@ -746,30 +788,36 @@ reg:    LOAD(LOAD(LOAD(mem)))
 reg:    ARG
     { $cost[0].cost = 0; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $0->val = -1;
     };
 
 mem:    ADD(reg, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
         $action[3](0);
 
-        printf("    addq %%%d, %d(%%rbp)\n", $2->val, $3->val);
+        printf("    addq %s, %d(%%rbp)\n", Regs[$2->val], $3->val);
 
         $0->val = $3->val;
         $0->valtype = meM;
     };
 
-mem:    ADD(reg, LOAD(mem))
-    { $cost[0].cost=$cost[2].cost+$cost[4].cost+1; }
+mem:    ADD(reg, LOAD(LOAD(mem)))
+    { $cost[0].cost=$cost[2].cost+$cost[5].cost+1; }
     = {
+        if($0->marked) return; $0->marked = true;
+
         $action[2](0);
-        $action[4](0);
+        $action[5](0);
 
-        printf("    addq %%%d, %d(%%rbp)\n", $2->val, $4->val);
+        printf("    addq %s, %d(%%rbp)\n", Regs[$2->val], $5->val);
 
-        $0->val = $4->val;
+        $0->val = $5->val;
         $0->valtype = meM;
     };
 
@@ -786,28 +834,55 @@ mem:    STORE(imm, mem)
         $0->valtype = meM;
     };
 
-
 mem:    STORE(reg, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
         $action[2](0);
         $action[3](0);
 
-        printf("    movq %%%d, %d(%%rbp)\n", $2->val, $3->val);
+        if($2->val < 0)
+            printf("report reg = $d\n", $2->val);
+        printf("    movq %s, %d(%%rbp)\n", Regs[$2->val], $3->val);
 
         $0->val = $3->val;
         $0->valtype = meM;
     };
+
+mem:    STORE(ARG, mem)
+    { $cost[0].cost=$cost[3].cost+1; }
+    = {
+        $action[3](0);
+
+        if($2->val <= 6)
+            printf("    movq %s, %d(%%rbp)\n", Regs[$2->val-1], $3->val);
+
+        $0->val = $3->val;
+        $0->valtype = meM;
+    }; 
 
 mem:    STORE(mem, mem)
     { $cost[0].cost=$cost[2].cost+$cost[3].cost+1; }
     = {
         $action[2](0);
         $action[3](0);
+        
+        bool pointer0 = false, pointer1 = false; 
+        if($0->I->getOperand(0)->getType()->isPointerTy())
+            pointer0 = 
+            $0->I->getOperand(0)->getType()->getPointerElementType()->isPointerTy();
+        if($0->I->getOperand(1)->getType()->isPointerTy())
+            pointer1 = 
+            $0->I->getOperand(1)->getType()->getPointerElementType()->isPointerTy();
 
-        printf("    leaq %d(%%rbp), %%rax\n", $2->val);    
-        printf("    movq %%rax, %d(%%rbp)\n", $3->val);
-
+        if(pointer0 == 0 && pointer1 == 1){
+            printf("    leaq %d(%%rbp), %%rax\n", $2->val);    
+            printf("    movq %%rax, %d(%%rbp)\n", $3->val);
+        }
+        else {
+            //printf("really?");
+            printf("    movq %d(%%rbp), %%rax\n", $2->val);    
+            printf("    movq %%rax, %d(%%rbp)\n", $3->val);
+        }
         $0->val = $3->val;
         $0->valtype = meM;
     };
@@ -824,10 +899,10 @@ arglist:    MERGE(reg, arglist)
         $action[2](0);
         $action[3](0);
 
-        if( $3->val < 7 )
-            printf("    movq %%%d, %s\n", $2->val, ArgRegs[$3->val]);
+        if( $3->val < 6 )
+            printf("    movq %s, %s\n",Regs[$2->val], Regs[$3->val]);
         else
-            printf("    movq %%%d, %d(%%rsp)\n", $2->val, 8*($3->val-6));
+            printf("    movq %s, %d(%%rsp)\n", Regs[$2->val], 8*($3->val-5));
 
         $0->val = $3->val+1;
         $0->valtype = arglisT;
@@ -839,11 +914,12 @@ arglist:    MERGE(LOAD(mem), arglist)
         $action[3](0);
         $action[4](0);
 
-        if( $4->val < 7 )
-            printf("    movq %d(%%rbp), %s\n", $3->val, ArgRegs[$4->val]);
-        else
-            printf("    movq %d(%%rbp), %d(%%rsp)\n", $3->val, 8*($4->val-6));
-
+        if( $4->val < 6 )
+            printf("    movq %d(%%rbp), %s\n", $3->val, Regs[$4->val]);
+        else{
+            printf("    movq %d(%%rbp), %%rax\n", $3->val);
+            printf("    movq %%rax, %d(%%rsp)\n", 8*($4->val-5));
+        }
         $0->val = $4->val+1;
         $0->valtype = arglisT;
  
@@ -855,7 +931,7 @@ arglist:    MERGE(reg, argend)
         $action[2](0);
         $action[3](0);
 
-        printf("    movq %%%d, %s\n", $2->val, ArgRegs[0]);
+        printf("    movq %%%d, %s\n", $2->val, Regs[0]);
 
         $0->val = 1;
         $0->valtype = arglisT;
@@ -867,7 +943,7 @@ arglist:    MERGE(LOAD(mem), argend)
         $action[3](0);
         $action[4](0);
 
-        printf("    movq %d(%%rbp), %s\n", $3->val, ArgRegs[0]);
+        printf("    movq %d(%%rbp), %s\n", $3->val, Regs[0]);
 
         $0->val = 1;
         $0->valtype = arglisT;
@@ -914,5 +990,7 @@ static Tree tree(int op, Tree l, Tree r, SymbolTable* ST) {
     t->I = 0;
     t->ST = ST;
     t->LR = NULL;
+    t->marked = false;
 	return t;
+
 }
