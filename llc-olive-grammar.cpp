@@ -310,25 +310,25 @@ int burm_line_numbers[] = {
   /* 22 */  816,
   /* 23 */  830,
   /* 24 */  844,
-  /* 25 */  862,
-  /* 26 */  878,
-  /* 27 */  892,
-  /* 28 */  899,
-  /* 29 */  913,
-  /* 30 */  927,
-  /* 31 */  939,
-  /* 32 */  953,
-  /* 33 */  965,
-  /* 34 */  977,
-  /* 35 */  1004,
-  /* 36 */  1010,
-  /* 37 */  1024,
-  /* 38 */  1047,
-  /* 39 */  1070,
-  /* 40 */  1086,
-  /* 41 */  1102,
-  /* 42 */  1108,
-  /* 43 */  1114,
+  /* 25 */  864,
+  /* 26 */  890,
+  /* 27 */  910,
+  /* 28 */  917,
+  /* 29 */  931,
+  /* 30 */  945,
+  /* 31 */  957,
+  /* 32 */  971,
+  /* 33 */  983,
+  /* 34 */  995,
+  /* 35 */  1022,
+  /* 36 */  1028,
+  /* 37 */  1042,
+  /* 38 */  1065,
+  /* 39 */  1088,
+  /* 40 */  1104,
+  /* 41 */  1120,
+  /* 42 */  1126,
+  /* 43 */  1132,
 };
 
 #pragma GCC diagnostic push
@@ -1343,10 +1343,12 @@ int indent)
 
         mem_action(_s->kids[0],0);
 
+
         //Function* CurFun = _s->node->I->getFunction();
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, _s->kids[0]->node->val))
 
+        //printf("here!\n");
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
         printf("    movq %d(%%rbp), %s\n", _s->kids[0]->node->val, Regs[tar]);
         //printActiveNodeList();
@@ -1366,8 +1368,18 @@ int indent)
 
         //printf("    movq %d(%%rbp), %%%d\n", _s->kids[0]->kids[0]->node->val, RegCounter);
         //printf("$0->LR->start = %d, $0->LR->end = %d", _s->node->LR->start, _s->node->LR->end);
+        //printf("here or!\n");
+
+
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
-        printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[tar]);
+        if(!_s->node->I){
+            printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->node->val, Regs[tar]);
+        }
+        else {
+            printf("    movq %d(%%rbp), %rax\n", _s->kids[0]->kids[0]->node->val);
+            printf("    movq (%%rax), %s\n", Regs[tar]);
+        }
+
         //printActiveNodeList();
 
         _s->node->val = tar;
@@ -1384,8 +1396,14 @@ int indent)
         mem_action(_s->kids[0]->kids[0]->kids[0],0);
 
         int tar = RegAllocation(_s->node->LR->start, _s->node->LR->end);
-        printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->kids[0]->node->val, Regs[tar]);
+        if(_s->kids[0]->kids[0]->node->I)
+            _s->kids[0]->kids[0]->node->I->print(errs());    
+        //printf("    movq %d(%%rbp), %s\n", _s->kids[0]->kids[0]->kids[0]->node->val, Regs[tar]);
         //printActiveNodeList();
+
+        //printf("here or or!\n");
+        printf("    movq %d(%%rbp), %%rax\n", _s->kids[0]->kids[0]->kids[0]->node->val);
+        printf("    movq (%%rax), %s\n", Regs[tar]);
 
         _s->node->val = tar;
         _s->node->valtype = reG;

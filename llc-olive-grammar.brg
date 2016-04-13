@@ -845,10 +845,12 @@ reg:    LOAD(mem)
 
         $action[2](0);
 
+
         //Function* CurFun = $0->I->getFunction();
         //char* name = (char*)CurFun->getName().data;
         //if(findLoadedMem(name, $2->val))
 
+        //printf("here!\n");
         int tar = RegAllocation($0->LR->start, $0->LR->end);
         printf("    movq %d(%%rbp), %s\n", $2->val, Regs[tar]);
         //printActiveNodeList();
@@ -865,8 +867,18 @@ reg:    LOAD(LOAD(mem))
 
         //printf("    movq %d(%%rbp), %%%d\n", $3->val, RegCounter);
         //printf("$0->LR->start = %d, $0->LR->end = %d", $0->LR->start, $0->LR->end);
+        //printf("here or!\n");
+
+
         int tar = RegAllocation($0->LR->start, $0->LR->end);
-        printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
+        if(!$1->I){
+            printf("    movq %d(%%rbp), %s\n", $3->val, Regs[tar]);
+        }
+        else {
+            printf("    movq %d(%%rbp), %rax\n", $3->val);
+            printf("    movq (%%rax), %s\n", Regs[tar]);
+        }
+
         //printActiveNodeList();
 
         $0->val = tar;
@@ -880,8 +892,14 @@ reg:    LOAD(LOAD(LOAD(mem)))
         $action[4](0);
 
         int tar = RegAllocation($0->LR->start, $0->LR->end);
-        printf("    movq %d(%%rbp), %s\n", $4->val, Regs[tar]);
+        if($3->I)
+            $3->I->print(errs());    
+        //printf("    movq %d(%%rbp), %s\n", $4->val, Regs[tar]);
         //printActiveNodeList();
+
+        //printf("here or or!\n");
+        printf("    movq %d(%%rbp), %%rax\n", $4->val);
+        printf("    movq (%%rax), %s\n", Regs[tar]);
 
         $0->val = tar;
         $0->valtype = reG;

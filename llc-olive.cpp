@@ -116,6 +116,7 @@ bool findSymbolTable(SymbolTable *ST, Value* val, Tree t){
     int i = 0;
     for(auto& globalVar : M->getGlobalList()){
         if(val == &globalVar){
+            errs() << "global in find symboltable\n";
             t->op = 994;
             t->val = i;
             return true;
@@ -347,7 +348,8 @@ void printGlobalEntry() {
 void printTreeList(TreeList* TL, LiveRange* LR, int n){
     errs() << "this is the output\n";
     for(TreeList* temp = TL; temp != NULL; temp = temp->next){
-        printTree(temp->tptr, 0);
+        if(temp->tptr)
+            printTree(temp->tptr, 0);
         //errs() << temp->tptr->op <<'\n';
         gen(temp->tptr);
         //errs()<<"\n";
@@ -563,6 +565,8 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
         }
         for(auto &bb:f.getBasicBlockList())
             for( auto &I: bb.getInstList()) {
+                //errs() << "===================start of an instruction===========================\n"; 
+                //printTreeList(TL, NULL, 0);
                 instCount++;
                 errs() << '\n';
                 I.print(errs());
@@ -655,7 +659,10 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                         t->kids[0] = offset;
                         if(I.getOperand(0)->getType()->getPointerElementType()->isPointerTy()){
                             errs() << "load from a pointer!\n";
-                            findSymbolTable(ST, I.getOperand(0), t);
+                            if(!findSymbolTable(ST, I.getOperand(0), offset)){
+                                errs() << "merg tree list & find ST error!\n";
+                                exit(1);
+                            }
                         }
                         else if(!(mergeTreeListLeft(TL, I.getOperand(0), t) || findSymbolTable(ST, I.getOperand(0),offset))){
                             errs() << "merge tree list & find symboltable error!\n";
@@ -830,6 +837,7 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
             }
 
        
+        //printTreeList(TL, LiveIn[0].LR, LiveIn[0].NumVars);
         bool changed = false;
         do
         {
@@ -846,22 +854,22 @@ std::unique_ptr<Module> makeLLVMModule(cl::opt<std::string>& inputfile, LLVMCont
                     changed |= LiveUnion(B, B_succ, LiveIn, NumBB); 
                 }
                 auto& instList = B->getInstList();
-                errs() << "changed before before: " << changed << '\n';
+                //errs() << "changed before before: " << changed << '\n';
                 for(auto I = instList.begin(), E = instList.end(); I != E; I++){
                     changed |= addRangeIfLive(&*I, &(LiveIn[i]), IM);
                     if(changed) errs() << "1" ;
                 }
-                errs() << "changed before:" << changed << '\n';
+                //errs() << "changed before:" << changed << '\n';
                 for(auto I = instList.rbegin() , E = instList.rend(); I != E; I++){
                     changed |= setStart(&*I, &(LiveIn[i]));
                     //errs() << I->getOpcode() << '\n';
                     //LiveIn[0].LR[0].v->print(errs());
-                    errs() << "changed mid: " << changed << '\n';
+                    //errs() << "changed mid: " << changed << '\n';
                     for(int j = 0; j < I->getNumOperands(); j++){
                         Value* operand = I->getOperand(j);
                         changed |= addRange(operand, &*I, &(LiveIn[i]), ST);
                     }
-                    errs() << "changed after: "<< changed <<'\n';
+                    //errs() << "changed after: "<< changed <<'\n';
                 }
                 if(i != 0){
                     for(int k = 0; k < LiveIn[i].NumVars; k++)
